@@ -19,7 +19,7 @@ export const TaskPanel = ({ scenario, state, open, onToggle, onReset, dispatch, 
   return (
     <aside className={`ed-task ${open ? "is-open" : ""}`} aria-label="Завдання">
       <header className="ed-task-head">
-        <span className="ed-grade">{scenario.grade} клас</span>
+        {scenario.grade > 0 && <span className="ed-grade">{scenario.grade} клас</span>}
         <h2>{scenario.title}</h2>
         <button type="button" className="ed-task-hide" aria-label="Сховати завдання" onClick={onToggle}>
           ✕

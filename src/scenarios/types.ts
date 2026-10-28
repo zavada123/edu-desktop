@@ -13,6 +13,7 @@ export interface AppSpec {
 /** One exercise: what is on the desktop at the start, what to do, and how to check it. */
 export interface Scenario {
   readonly id: string
+  /** School grade shown on the task card; 0 hides it (a page that shows the grade itself). */
   readonly grade: number
   readonly title: string
   /** The task as the student reads it. Short sentences, one action each. */
