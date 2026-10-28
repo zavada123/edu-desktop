@@ -1,4 +1,5 @@
-import { BIN_ID, childrenOf, displayName, getNode, isInBin, type NodeId, THIS_PC_ID, windowsPath } from "../core/fs.ts"
+import { useEffect, useRef, useState } from "react"
+import { BIN_ID, childrenOf, displayName, getNode, isInBin, type NodeId, resolveAddress, THIS_PC_ID, windowsPath } from "../core/fs.ts"
 import { plural } from "../core/names.ts"
 import { ItemGrid } from "./ItemGrid.tsx"
 import type { Action, DesktopState, Win } from "./store.ts"
@@ -18,28 +19,54 @@ const chainOf = (state: DesktopState, id: NodeId): ReadonlyArray<NodeId> => {
   return parent === null || parent === undefined ? [id] : [...chainOf(state, parent), id]
 }
 
-/** Breadcrumbs to click, and below them the full path as the textbook writes it: `D:\Мої уроки\Інформатика`. */
-const Address = ({ state, win, dispatch }: Omit<Props, "bind">) => {
-  const chain = chainOf(state, win.nodeId)
+/** Text field shown instead of the breadcrumbs: the full path, which can also be typed and opened with Enter. */
+const AddressInput = ({ state, win, dispatch, onDone }: Omit<Props, "bind"> & { readonly onDone: () => void }) => {
+  const ref = useRef<HTMLInputElement>(null)
+  useEffect(() => ref.current?.select(), [])
+  const go = (text: string) => {
+    const target = resolveAddress(state.fs, text)
+    if (target === null) dispatch({ type: "notify", message: `Не вдається знайти «${text.trim()}». Перевір, чи правильно записано шлях.` })
+    else dispatch({ type: "navigate", winId: win.id, nodeId: target })
+    onDone()
+  }
   return (
-    <div className="ed-address">
-      <nav className="ed-crumbs" aria-label="Шлях">
-        {chain.map((id, i) => {
-          const node = getNode(state.fs, id)
-          return (
-            <span key={id} className="ed-crumb">
-              {i > 0 && <span className="ed-crumb-sep">›</span>}
-              <button type="button" onClick={() => dispatch({ type: "navigate", winId: win.id, nodeId: id })}>
-                {node ? displayName(node) : ""}
-              </button>
-            </span>
-          )
-        })}
-      </nav>
-      <code className="ed-path" aria-label="Повний шлях">
-        {windowsPath(state.fs, win.nodeId)}
-      </code>
-    </div>
+    <input
+      ref={ref}
+      className="ed-path-input"
+      aria-label="Адреса"
+      defaultValue={windowsPath(state.fs, win.nodeId)}
+      spellCheck={false}
+      onPointerDown={(e) => e.stopPropagation()}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") go(e.currentTarget.value)
+        if (e.key === "Escape") onDone()
+      }}
+      onBlur={onDone}
+    />
+  )
+}
+
+/**
+ * Address bar as in Windows: clickable folders, and a click on its empty part turns it into
+ * the full path as the textbook writes it (`D:\\Мої уроки\\Інформатика`).
+ */
+const Address = ({ state, win, dispatch }: Omit<Props, "bind">) => {
+  const [editing, setEditing] = useState(false)
+  if (editing) return <div className="ed-address"><AddressInput state={state} win={win} dispatch={dispatch} onDone={() => setEditing(false)} /></div>
+  return (
+    <nav className="ed-address" aria-label="Шлях" title="Клацни тут, щоб побачити повний шлях" onClick={(e) => e.target === e.currentTarget && setEditing(true)}>
+      {chainOf(state, win.nodeId).map((id, i) => {
+        const node = getNode(state.fs, id)
+        return (
+          <span key={id} className="ed-crumb">
+            {i > 0 && <span className="ed-crumb-sep">›</span>}
+            <button type="button" onClick={() => dispatch({ type: "navigate", winId: win.id, nodeId: id })}>
+              {node ? displayName(node) : ""}
+            </button>
+          </span>
+        )
+      })}
+    </nav>
   )
 }
 

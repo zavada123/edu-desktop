@@ -115,6 +115,17 @@ export const findByPath = (state: FsState, path: string): FsNode | undefined => 
   return cur
 }
 
+/** Folder typed into the address bar: `D:\\Мої уроки`, `Робочий стіл\\Мої фото`, `Цей ПК`. `null` if there is no such folder. */
+export const resolveAddress = (state: FsState, text: string): NodeId | null => {
+  const trimmed = text.trim()
+  if (sameName(trimmed, "Цей ПК")) return THIS_PC_ID
+  if (sameName(trimmed, "Кошик")) return BIN_ID
+  const parts = trimmed.split(/[/\\]/).filter((p) => p.trim().length > 0)
+  const relative = parts[0] !== undefined && sameName(parts[0], "Робочий стіл") ? parts.slice(1) : parts
+  const node = findByPath(state, relative.join("/"))
+  return node && node.kind === "folder" ? node.id : null
+}
+
 const put = (state: FsState, node: FsNode): FsState => ({ ...state, nodes: { ...state.nodes, [node.id]: node } })
 
 const withoutDeletedFrom = (node: FsNode): FsNode => {

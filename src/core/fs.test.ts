@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest"
-import { BIN_ID, childrenOf, copy, create, deleteForever, DESKTOP_ID, driveId, emptyBin, findByPath, type FsResult, type FsState, move, pathOf, remove, rename, restore, THIS_PC_ID, windowsPath } from "./fs.ts"
+import { BIN_ID, childrenOf, copy, create, deleteForever, DESKTOP_ID, driveId, emptyBin, findByPath, type FsResult, type FsState, move, pathOf, remove, rename, restore, THIS_PC_ID, resolveAddress, windowsPath } from "./fs.ts"
 import { freeName, validateName } from "./names.ts"
 import { buildState } from "./tree.ts"
 
@@ -164,5 +164,22 @@ describe("deleteForever", () => {
     expect(deleteForever(start, fileId).ok).toBe(false)
     const gone = ok(deleteForever(ok(remove(start, fileId)), fileId))
     expect(gone.nodes[fileId]).toBeUndefined()
+  })
+})
+
+describe("resolveAddress", () => {
+  const withDrives = buildState({ "Мої фото": { "ліс.jpg": null } }, { "D:": { "Мої уроки": {} } })
+
+  test("opens folders typed in the address bar", () => {
+    expect(resolveAddress(withDrives, "D:\\Мої уроки")).toBe(idOf(withDrives, "D:/Мої уроки"))
+    expect(resolveAddress(withDrives, "d:\\")).toBe(driveId("D"))
+    expect(resolveAddress(withDrives, "Робочий стіл\\Мої фото")).toBe(idOf(withDrives, "Мої фото"))
+    expect(resolveAddress(withDrives, "  Цей ПК ")).toBe(THIS_PC_ID)
+    expect(resolveAddress(withDrives, "Робочий стіл")).toBe(DESKTOP_ID)
+  })
+
+  test("returns null for files and missing folders", () => {
+    expect(resolveAddress(withDrives, "Робочий стіл\\Мої фото\\ліс.jpg")).toBeNull()
+    expect(resolveAddress(withDrives, "C:\\Немає")).toBeNull()
   })
 })
