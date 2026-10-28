@@ -136,3 +136,14 @@ describe("the trainer records what replay needs", () => {
 })
 
 const childrenOfBin = (state: FsState): number => Object.values(state.nodes).filter((n) => n.parentId === BIN_ID).length
+
+describe("grade on data from outside", () => {
+  test("a broken start tree is an error, not an exception", () => {
+    const result = grade({ start: { "a?.txt": null }, goals: [] }, [])
+    expect(result).toMatchObject({ ok: false, index: -1 })
+  })
+
+  test("a shortcut to nothing is an error, not an exception", () => {
+    expect(grade({ start: { "x – ярлик": "D:/немає" }, goals: [] }, [])).toMatchObject({ ok: false, index: -1 })
+  })
+})

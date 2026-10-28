@@ -1,7 +1,7 @@
 import * as fs from "./fs.ts"
 import type { FsResult, FsState, NodeId, NodeKind } from "./fs.ts"
 import { checkGoals, type Goal, type GoalResult, allMet } from "./goals.ts"
-import { buildState, type DrivesSpec, type TreeSpec } from "./tree.ts"
+import { type DrivesSpec, type TreeSpec, tryBuildState } from "./tree.ts"
 
 /**
  * One change of the file system, as the student made it. The trainer records every successful change,
@@ -64,7 +64,7 @@ export const applyOp = (state: FsState, op: Op): FsResult => {
 
 export type ReplayResult =
   | { readonly ok: true; readonly state: FsState }
-  /** `index` is the first change that could not be made; -1 when the log is too long. */
+  /** `index` is the first change that could not be made; -1 when the log is too long or the start tree is broken. */
   | { readonly ok: false; readonly index: number; readonly error: string }
 
 /** Applies the log in order. One impossible change makes the whole log invalid: the trainer never records one. */
@@ -93,9 +93,14 @@ export type GradeResult =
   | { readonly ok: true; readonly solved: boolean; readonly results: ReadonlyArray<GoalResult>; readonly state: FsState }
   | { readonly ok: false; readonly index: number; readonly error: string }
 
-/** Builds the start tree, replays the student's log and checks every goal. */
+/**
+ * Builds the start tree, replays the student's log and checks every goal. Never throws:
+ * a broken start tree gives `index: -1` and the problem.
+ */
 export const grade = (task: GradedTask, ops: ReadonlyArray<Op>): GradeResult => {
-  const replayed = replay(buildState(task.start, task.drives), ops)
+  const built = tryBuildState(task.start, task.drives)
+  if (!built.ok) return { ok: false, index: -1, error: built.error }
+  const replayed = replay(built.state, ops)
   if (!replayed.ok) return replayed
   const results = checkGoals(replayed.state, task.goals)
   return { ok: true, solved: allMet(results), results, state: replayed.state }
