@@ -20,6 +20,8 @@ export interface FsNode {
   readonly restored?: true
   /** A shortcut (ярлик) is a file that points at another object; deleting it leaves that object alone. */
   readonly target?: NodeId
+  /** A compressed ZIP folder (8 клас): Windows opens it like a folder. */
+  readonly zip?: true
 }
 
 export interface FsState {
@@ -201,7 +203,8 @@ const copyTree = (state: FsState, sourceId: NodeId, parentId: NodeId, name: stri
   if (!source) return { state, id: sourceId }
   const id = `n${state.nextId}`
   const target = source.target === undefined ? {} : { target: source.target }
-  const withCopy = put({ ...state, nextId: state.nextId + 1 }, { id, name, kind: source.kind, parentId, ...target })
+  const zip = source.zip ? { zip: true as const } : {}
+  const withCopy = put({ ...state, nextId: state.nextId + 1 }, { id, name, kind: source.kind, parentId, ...target, ...zip })
   const children = childrenOf(state, sourceId)
   const finalState = children.reduce((acc, child) => copyTree(acc, child.id, id, child.name).state, withCopy)
   return { state: finalState, id }
@@ -240,6 +243,39 @@ export const createShortcut = (state: FsState, id: NodeId, parentId: NodeId): Fs
   const newId = `n${state.nextId}`
   const shortcut: FsNode = { id: newId, name, kind: "file", parentId, target: node.target ?? id }
   return { ok: true, id: newId, state: put({ ...state, nextId: state.nextId + 1 }, shortcut) }
+}
+
+/**
+ * «Надіслати → Стиснута ZIP-папка»: a `name.zip` next to the items with copies of them inside.
+ * The originals stay where they were.
+ */
+export const compress = (state: FsState, ids: ReadonlyArray<NodeId>, name: string): FsResult => {
+  const first = ids[0] === undefined ? undefined : getNode(state, ids[0])
+  if (!first || first.parentId === null || ids.some(isSystem)) return fail("Ці об'єкти не можна стиснути")
+  const parentId = first.parentId
+  if (parentId === BIN_ID || isInBin(state, parentId)) return fail("Спершу віднови об'єкти з кошика")
+  const made = create(state, parentId, "folder", `${name}.zip`)
+  if (!made.ok) return made
+  const zipped = put(made.state, { ...(getNode(made.state, made.id) ?? first), zip: true })
+  const filled = ids.reduce((acc, id) => copyTree(acc, id, made.id, getNode(acc, id)?.name ?? "").state, zipped)
+  return { ok: true, id: made.id, state: filled }
+}
+
+/** Turns a folder into a ZIP folder; scenario trees use it for `name.zip` entries. */
+export const markZip = (state: FsState, id: NodeId): FsState => {
+  const node = getNode(state, id)
+  return node?.kind === "folder" ? put(state, { ...node, zip: true }) : state
+}
+
+/** «Видобути все…»: a folder named like the archive (without `.zip`) next to it, with everything from it. */
+export const extractAll = (state: FsState, zipId: NodeId): FsResult => {
+  const zip = getNode(state, zipId)
+  if (!zip?.zip || zip.parentId === null) return fail("Це не ZIP-папка")
+  if (isInBin(state, zipId)) return fail("Спершу віднови архів з кошика")
+  const made = create(state, zip.parentId, "folder", splitExtension(zip.name).base)
+  if (!made.ok) return made
+  const filled = childrenOf(state, zipId).reduce((acc, child) => copyTree(acc, child.id, made.id, child.name).state, made.state)
+  return { ok: true, id: made.id, state: filled }
 }
 
 /** What a shortcut opens, or `undefined` when its object was deleted or lies in the bin. */

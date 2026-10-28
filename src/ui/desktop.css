@@ -486,7 +486,7 @@
 
 .ed-task-show {
   position: absolute;
-  top: 10px;
+  bottom: 10px;
   right: 10px;
   z-index: 500;
   min-height: 40px;
@@ -555,10 +555,6 @@
     border-radius: 14px 14px 0 0;
   }
 
-  .ed-task-show {
-    top: auto;
-    bottom: 10px;
-  }
 }
 
 /* ── Address with full path, dialogs, multi-select ───────────── */

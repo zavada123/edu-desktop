@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest"
-import { BIN_ID, childrenOf, copy, create, createShortcut, deleteForever, DESKTOP_ID, driveId, emptyBin, findByPath, type FsResult, type FsState, move, pathOf, remove, rename, restore, THIS_PC_ID, resolveAddress, saveFile, shortcutTarget, windowsPath } from "./fs.ts"
+import { BIN_ID, childrenOf, compress, copy, create, createShortcut, deleteForever, extractAll, DESKTOP_ID, driveId, emptyBin, findByPath, type FsResult, type FsState, move, pathOf, remove, rename, restore, THIS_PC_ID, resolveAddress, saveFile, shortcutTarget, windowsPath } from "./fs.ts"
 import { freeName, validateName } from "./names.ts"
 import { buildState } from "./tree.ts"
 
@@ -236,5 +236,24 @@ describe("«Зберегти як»", () => {
     expect(saveFile(start, DESKTOP_ID, "  ", ".png").ok).toBe(false)
     expect(saveFile(start, THIS_PC_ID, "x", ".png").ok).toBe(false)
     expect(saveFile(start, DESKTOP_ID, "a?b", ".png").ok).toBe(false)
+  })
+})
+
+describe("ZIP folders", () => {
+  test("compress copies the items into name.zip next to them; extract makes a folder with the contents", () => {
+    const sea = findByPath(start, "Мої фото/море.jpg")?.id ?? ""
+    const forest = findByPath(start, "Мої фото/ліс.jpg")?.id ?? ""
+    const zipped = ok(compress(start, [sea, forest], "фото"))
+    expect(findByPath(zipped, "Мої фото/фото.zip")?.zip).toBe(true)
+    expect(childrenOf(zipped, findByPath(zipped, "Мої фото/фото.zip")?.id ?? "").map((n) => n.name)).toEqual(["ліс.jpg", "море.jpg"])
+    expect(findByPath(zipped, "Мої фото/море.jpg")).toBeDefined()
+    const extracted = ok(extractAll(zipped, findByPath(zipped, "Мої фото/фото.zip")?.id ?? ""))
+    expect(findByPath(extracted, "Мої фото/фото/ліс.jpg")).toBeDefined()
+    expect(findByPath(extracted, "Мої фото/фото")?.zip).toBeUndefined()
+    expect(extractAll(start, findByPath(start, "Документи")?.id ?? "").ok).toBe(false)
+  })
+
+  test("scenario trees mark `.zip` folders", () => {
+    expect(findByPath(buildState({ "a.zip": { "b.txt": null } }), "a.zip")?.zip).toBe(true)
   })
 })

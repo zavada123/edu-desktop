@@ -1,9 +1,10 @@
-import { create, createShortcut, DESKTOP_ID, DRIVE_LETTERS, driveId, emptyState, findByPath, type FsResult, type FsState, type NodeId, rename } from "./fs.ts"
+import { create, createShortcut, markZip, DESKTOP_ID, DRIVE_LETTERS, driveId, emptyState, findByPath, type FsResult, type FsState, type NodeId, rename } from "./fs.ts"
 
 /**
  * Compact description of a starting desktop for scenario authors.
  * An object is a folder, `null` is a file, a string is a shortcut to that path:
  * `{ "Мої фото": { "ліс.jpg": null }, "вірш.txt": null, "Ігри – ярлик": "D:/Ігри" }`.
+ * A folder whose name ends with `.zip` is a compressed ZIP folder: `{ "фото.zip": { "ліс.jpg": null } }`.
  */
 export type TreeSpec = { readonly [name: string]: TreeSpec | null | string }
 
@@ -26,7 +27,9 @@ const addSpec = (state: FsState, parentId: NodeId, spec: TreeSpec, pending: Pend
       return acc
     }
     const result = orThrow(name, create(acc, parentId, child === null ? "file" : "folder", name))
-    return child === null ? result.state : addSpec(result.state, result.id, child, pending)
+    if (child === null) return result.state
+    const folder = name.toLocaleLowerCase("uk").endsWith(".zip") ? markZip(result.state, result.id) : result.state
+    return addSpec(folder, result.id, child, pending)
   }, state)
 
 const addShortcut = (state: FsState, { parentId, name, target }: PendingShortcut): FsState => {

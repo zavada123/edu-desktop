@@ -42,6 +42,7 @@ const itemMenu = (state: DesktopState, targetId: NodeId): ReadonlyArray<MenuItem
   const single = ids.length === 1
   return [
     ...(single ? [{ label: "Відкрити", command: "open" } as const] : []),
+    ...(single && node.zip ? [{ label: "Видобути все…", command: { type: "extract", nodeId: targetId } as const }] : []),
     { label: "Надіслати", command: "send" },
     { label: "Вирізати", command: { type: "clip", mode: "cut", ids } },
     { label: "Копіювати", command: { type: "clip", mode: "copy", ids } },
@@ -72,7 +73,8 @@ const createMenu = (containerId: NodeId): ReadonlyArray<MenuItem> => [
 
 /** «Надіслати ›» as in the textbook (5 клас, рис. 6.3); only the desktop item does something here. */
 const sendMenu = (state: DesktopState, targetId: NodeId): ReadonlyArray<MenuItem> => [
-  { label: "Робочий стіл (створити ярлик)", command: { type: "shortcut", ids: targetsOf(state, targetId), targetId: DESKTOP_ID } }
+  { label: "Робочий стіл (створити ярлик)", command: { type: "shortcut", ids: targetsOf(state, targetId), targetId: DESKTOP_ID } },
+  { label: "Стиснута ZIP-папка", command: { type: "compress", ids: targetsOf(state, targetId) } }
 ]
 
 const SUBMENU_TITLES: Record<Submenu, string> = { create: "Створити", send: "Надіслати" }

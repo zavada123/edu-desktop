@@ -26,7 +26,7 @@ const RenameInput = ({ node, dispatch }: { readonly node: FsNode; readonly dispa
     input.focus()
     // Like Windows: select the name without the extension so typing keeps `.jpg`.
     const { base } = splitExtension(node.name)
-    input.setSelectionRange(0, node.kind === "folder" || node.target !== undefined ? node.name.length : base.length)
+    input.setSelectionRange(0, (node.kind === "folder" && !node.zip) || node.target !== undefined ? node.name.length : base.length)
   }, [node.id, node.kind, node.name])
   return (
     <input

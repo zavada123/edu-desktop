@@ -1,6 +1,7 @@
 import * as fs from "../core/fs.ts"
 import { BIN_ID, DESKTOP_ID, type FsResult, type FsState, type NodeId } from "../core/fs.ts"
 import { checkGoals, type Goal, type GoalResult } from "../core/goals.ts"
+import { splitExtension } from "../core/names.ts"
 
 /** UI state of one desktop session. Pure reducer: every action returns a new object. */
 
@@ -80,7 +81,8 @@ export type Action =
   | { readonly type: "minimize"; readonly winId: number }
   /** Taskbar button: as in Windows, it minimises the active window and brings back any other. */
   | { readonly type: "taskbar"; readonly winId: number }
-  | { readonly type: "select"; readonly nodeId: NodeId | null; readonly additive: boolean }
+  /** `range`: Shift+click selects everything from the first selected item to this one. */
+  | { readonly type: "select"; readonly nodeId: NodeId | null; readonly additive: boolean; readonly range?: boolean }
   | { readonly type: "selectAll"; readonly containerId: NodeId }
   | { readonly type: "toggleMulti" }
   | { readonly type: "startRename"; readonly nodeId: NodeId }
@@ -94,6 +96,9 @@ export type Action =
   | { readonly type: "restore"; readonly ids: Ids }
   /** «Створити ярлик» (`targetId` null: next to each item) or «Надіслати → Робочий стіл» (`targetId` = desktop). */
   | { readonly type: "shortcut"; readonly ids: Ids; readonly targetId: NodeId | null }
+  /** «Надіслати → Стиснута ZIP-папка»; then the student types the archive name. */
+  | { readonly type: "compress"; readonly ids: Ids }
+  | { readonly type: "extract"; readonly nodeId: NodeId }
   | { readonly type: "clip"; readonly mode: Clipboard["mode"]; readonly ids: Ids }
   | { readonly type: "paste"; readonly targetId: NodeId }
   | { readonly type: "drop"; readonly ids: Ids; readonly targetId: NodeId; readonly copy: boolean }
@@ -194,6 +199,27 @@ const select = (state: DesktopState, nodeId: NodeId | null, additive: boolean): 
   return { ...base, selected }
 }
 
+/** Shift+click: the items between the first selected one and `nodeId`, in the order the folder shows them. */
+const selectRange = (state: DesktopState, nodeId: NodeId): DesktopState => {
+  const parent = fs.getNode(state.fs, nodeId)?.parentId
+  const anchor = state.selected[0]
+  const siblings = parent == null ? [] : fs.childrenOf(state.fs, parent).map((n) => n.id)
+  const from = anchor === undefined ? -1 : siblings.indexOf(anchor)
+  const to = siblings.indexOf(nodeId)
+  if (from < 0 || to < 0) return select(state, nodeId, false)
+  const [a, b] = from <= to ? [from, to] : [to, from]
+  const range = siblings.slice(a, b + 1)
+  return { ...state, menu: null, renaming: null, selected: [anchor ?? nodeId, ...range.filter((id) => id !== anchor)] }
+}
+
+const compress = (state: DesktopState, ids: Ids): DesktopState => {
+  const items = userIds(ids)
+  const first = items[0] === undefined ? undefined : fs.getNode(state.fs, items[0])
+  if (!first) return { ...state, menu: null }
+  const name = first.kind === "folder" ? first.name : splitExtension(first.name).base
+  return applyFs(state, fs.compress(state.fs, items, name), (s, id) => ({ ...s, selected: [id], renaming: id }))
+}
+
 const askDelete = (state: DesktopState, ids: Ids): DesktopState => {
   const items = userIds(ids)
   if (items.length === 0) return { ...state, menu: null }
@@ -272,7 +298,11 @@ export const reducer = (state: DesktopState, action: Action): DesktopState => {
         return fs.createShortcut(s, id, home)
       })
     case "select":
-      return select(state, action.nodeId, action.additive || state.multi)
+      return action.range && action.nodeId !== null ? selectRange(state, action.nodeId) : select(state, action.nodeId, action.additive || state.multi)
+    case "compress":
+      return compress(state, action.ids)
+    case "extract":
+      return applyFs(state, fs.extractAll(state.fs, action.nodeId), (s, id) => ({ ...s, selected: [id] }))
     case "selectAll":
       return { ...state, menu: null, renaming: null, selected: userIds(fs.childrenOf(state.fs, action.containerId).map((n) => n.id)) }
     case "toggleMulti":

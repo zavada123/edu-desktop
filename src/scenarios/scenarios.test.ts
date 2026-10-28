@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest"
-import { BIN_ID, childrenOf, copy, create, createShortcut, DESKTOP_ID, driveId, findByPath, type FsResult, type FsState, move, remove, rename, restore } from "../core/fs.ts"
+import { BIN_ID, childrenOf, compress, copy, create, createShortcut, DESKTOP_ID, extractAll, driveId, findByPath, type FsResult, type FsState, move, remove, rename, restore } from "../core/fs.ts"
 import { allMet, checkGoals } from "../core/goals.ts"
 import { buildState } from "../core/tree.ts"
 import { scenarios } from "./index.ts"
@@ -155,5 +155,29 @@ describe("g4-context-menu", () => {
     s = step(copy(s, at(s, "Документи/вірш.txt"), at(s, "Моя папка/Інформатика/Тексти")))
     s = step(move(s, at(s, "Моя папка/Інформатика/Тексти/вірш.txt"), at(s, "Моя папка/Інформатика/Малюнки")))
     expect(checkGoals(s, scenario.goals).filter((r) => !r.ok)).toEqual([])
+  })
+})
+
+describe("8 клас, ZIP", () => {
+  test("вправа 5 can be solved", () => {
+    const sc = scenario("g8-zip")
+    let s = buildState(sc.start, sc.drives)
+    const nature = "D:/Розділ 2/Пункт 2.1/Природа"
+    const first10 = Array.from({ length: 10 }, (_, i) => at(s, `${nature}/photo${String(i + 1).padStart(2, "0")}.jpg`))
+    s = step(compress(s, first10, "nature"))
+    s = step(move(s, at(s, `${nature}/nature.zip`), at(s, "D:/Моя папка")))
+    for (const f of ["photo01.jpg", "photo02.jpg"]) s = step(move(s, at(s, `D:/Моя папка/nature.zip/${f}`), at(s, "D:/Моя папка")))
+    expect(failed("g8-zip", s)).toEqual([])
+  })
+
+  test("practical work 2, extraction, can be solved", () => {
+    const sc = scenario("g8-extract")
+    let s = buildState(sc.start, sc.drives)
+    const zip = "D:/Моя папка/Копія архіву/pictures.zip"
+    for (let n = 12; n <= 16; n++) s = step(remove(s, at(s, `${zip}/pic${n}.png`)))
+    s = step(extractAll(s, at(s, zip)))
+    s = step(rename(s, at(s, "D:/Моя папка/Копія архіву/pictures"), "Мої малюнки"))
+    s = step(move(s, at(s, "D:/Моя папка/Копія архіву/Мої малюнки"), at(s, "D:/Моя папка")))
+    expect(failed("g8-extract", s)).toEqual([])
   })
 })

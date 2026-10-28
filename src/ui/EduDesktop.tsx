@@ -110,7 +110,7 @@ export const EduDesktop = ({ scenario, onCheck }: Props) => {
   }, [state, open])
 
   const { bind, drag } = usePointer({
-    onSelect: (nodeId, additive) => dispatch({ type: "select", nodeId, additive }),
+    onSelect: (nodeId, additive, range) => dispatch({ type: "select", nodeId, additive, range }),
     onOpen: (nodeId) => {
       const parentId = getNode(state.fs, nodeId)?.parentId
       open(nodeId, state.windows.find((w) => w.nodeId === parentId)?.id)

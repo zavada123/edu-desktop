@@ -20,8 +20,8 @@ export interface Drag {
 }
 
 export interface PointerHandlers {
-  /** Single tap or click on an item, or on empty space (`null`). `additive`: Ctrl, Shift or ⌘ was held. */
-  readonly onSelect: (nodeId: NodeId | null, additive: boolean) => void
+  /** Single tap or click on an item, or on empty space (`null`). `additive`: Ctrl or ⌘ was held; `range`: Shift. */
+  readonly onSelect: (nodeId: NodeId | null, additive: boolean, range: boolean) => void
   readonly onOpen: (nodeId: NodeId) => void
   readonly onMenu: (x: number, y: number, containerId: NodeId, nodeId: NodeId | null) => void
   readonly onDrop: (nodeId: NodeId, targetId: NodeId, copy: boolean) => void
@@ -72,7 +72,7 @@ export const usePointer = (handlers: PointerHandlers) => {
         return
       }
       if (p.consumed) return
-      handlersRef.current.onSelect(p.nodeId, e.ctrlKey || e.metaKey || e.shiftKey)
+      handlersRef.current.onSelect(p.nodeId, e.ctrlKey || e.metaKey, e.shiftKey)
       if (p.nodeId === null) return
       const now = Date.now()
       const prev = lastTap.current

@@ -116,3 +116,18 @@ describe("program and «Зберегти як»", () => {
     expect(twice.message).toContain("уже є")
   })
 })
+
+describe("Shift+click and ZIP", () => {
+  test("Shift+click selects the range in folder order", () => {
+    // Desktop order: folders first (Документи, Тварини), then files (кіт.png, собака.png).
+    const state = run(start, { type: "select", nodeId: idOf(start.fs, "Тварини"), additive: false }, { type: "select", nodeId: dog, additive: false, range: true })
+    expect(state.selected).toEqual([idOf(start.fs, "Тварини"), cat, dog])
+  })
+
+  test("«Стиснута ZIP-папка» is named after the clicked item and starts renaming", () => {
+    const state = run(start, { type: "compress", ids: [cat, dog] })
+    const zip = findByPath(state.fs, "кіт.zip")
+    expect(zip?.zip).toBe(true)
+    expect(state.renaming).toBe(zip?.id)
+  })
+})

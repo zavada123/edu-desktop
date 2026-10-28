@@ -6,7 +6,8 @@ import { extensionOf, plural, sameName } from "./names.ts"
  * no programming needed. Paths are relative to the desktop: `Мої фото/ліс.jpg`.
  */
 export type Goal =
-  | { readonly type: "exists"; readonly path: string; readonly kind?: NodeKind; readonly text?: string; readonly hint?: string }
+  /** `kind: "zip"` asks for a compressed ZIP folder, not a plain folder with `.zip` in its name. */
+  | { readonly type: "exists"; readonly path: string; readonly kind?: NodeKind | "zip"; readonly text?: string; readonly hint?: string }
   | { readonly type: "absent"; readonly path: string; readonly text?: string; readonly hint?: string }
   | { readonly type: "inBin"; readonly name: string; readonly text?: string; readonly hint?: string }
   /** The item at `path` was deleted into the bin and then restored. */
@@ -58,7 +59,7 @@ export const describeGoal = (goal: Goal): string => {
   switch (goal.type) {
     case "exists": {
       const { where, name } = lastPart(goal.path)
-      const what = goal.kind === "folder" ? "папка" : goal.kind === "file" ? "файл" : ""
+      const what = goal.kind === "folder" ? "папка" : goal.kind === "file" ? "файл" : goal.kind === "zip" ? "ZIP-папка" : ""
       return `${folderLabel(where)} є ${what} «${name}»`.replace(/\s+/g, " ").replace(/^./, (c) => c.toUpperCase())
     }
     case "absent": {
@@ -108,7 +109,8 @@ const isMet = (state: FsState, goal: Goal): boolean => {
   switch (goal.type) {
     case "exists": {
       const node = findByPath(state, goal.path)
-      return node !== undefined && (goal.kind === undefined || node.kind === goal.kind)
+      if (node === undefined || goal.kind === undefined) return node !== undefined
+      return goal.kind === "zip" ? node.zip === true : node.kind === goal.kind
     }
     case "absent":
       return findByPath(state, goal.path) === undefined

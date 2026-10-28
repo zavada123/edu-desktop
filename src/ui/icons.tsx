@@ -4,7 +4,7 @@ import { extensionOf } from "../core/names.ts"
 
 /** Own simple icons: no Microsoft artwork is used anywhere in the project. */
 
-type IconKind = "folder" | "bin" | "binFull" | "pc" | "drive" | "image" | "text" | "doc" | "audio" | "video" | "file"
+type IconKind = "zip" | "folder" | "bin" | "binFull" | "pc" | "drive" | "image" | "text" | "doc" | "audio" | "video" | "file"
 
 const IMAGE = ["jpg", "jpeg", "png", "gif", "bmp", "webp"]
 const TEXT = ["txt"]
@@ -16,6 +16,7 @@ export const iconKindOf = (node: FsNode, binHasItems: boolean): IconKind => {
   if (node.id === BIN_ID) return binHasItems ? "binFull" : "bin"
   if (node.id === THIS_PC_ID) return "pc"
   if (isDrive(node.id)) return "drive"
+  if (node.zip) return "zip"
   if (node.kind === "folder") return "folder"
   const ext = extensionOf(node.name)
   if (IMAGE.includes(ext)) return "image"
@@ -36,6 +37,15 @@ const Page = ({ color, children }: { readonly color: string; readonly children?:
 )
 
 const shapes: Record<IconKind, React.ReactNode> = {
+  zip: (
+    <>
+      <path d="M4 14a3 3 0 0 1 3-3h16l5 6h29a3 3 0 0 1 3 3v31a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3z" fill="#e8a317" />
+      <path d="M4 22a3 3 0 0 1 3-3h50a3 3 0 0 1 3 3v29a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3z" fill="#ffc83d" />
+      <rect x="28" y="19" width="8" height="35" fill="#3b4a5e" />
+      <path d="M28 23h8M28 28h8M28 33h8M28 38h8" stroke="#ffc83d" strokeWidth="2" />
+      <rect x="26" y="40" width="12" height="10" rx="2" fill="#9aa4b2" stroke="#3b4a5e" strokeWidth="2" />
+    </>
+  ),
   folder: (
     <>
       <path d="M4 14a3 3 0 0 1 3-3h16l5 6h29a3 3 0 0 1 3 3v31a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3z" fill="#e8a317" />

@@ -451,4 +451,72 @@ const saveImage: Scenario = {
   ]
 }
 
-export const scenarios: ReadonlyArray<Scenario> = [animals, sortPictures, saveDrawing, grandma, filePath, contextMenu, saveText, saveImage, trip, exercise6, fileTypes, driveFolder, shortcuts, practical1, fileJunk]
+// «Інформатика», 8 клас (Ривкінд), § 2.1 вправа 5 і практична робота 2: стиснуті ZIP-папки засобами Провідника.
+
+const zipFolder: Scenario = {
+  id: "g8-zip",
+  grade: 8,
+  title: "Стиснута ZIP-папка",
+  task: [
+    "Відкрий папку D:\\Розділ 2\\Пункт 2.1\\Природа.",
+    "Виділи перші 10 файлів (photo01–photo10): клацни перший, потім із Shift — десятий.",
+    "Створи з них архів: права кнопка миші → «Надіслати» → «Стиснута ZIP-папка». Назви архів nature.",
+    "Перемісти nature.zip у свою папку D:\\Моя папка.",
+    "Відкрий архів і перемісти з нього у свою папку перші два файли (photo01 і photo02)."
+  ],
+  start: {},
+  drives: {
+    "C:": { Програми: {} },
+    "D:": { "Розділ 2": { "Пункт 2.1": { Природа: { "photo01.jpg": null, "photo02.jpg": null, "photo03.jpg": null, "photo04.jpg": null, "photo05.jpg": null, "photo06.jpg": null, "photo07.jpg": null, "photo08.jpg": null, "photo09.jpg": null, "photo10.jpg": null, "photo11.jpg": null, "photo12.jpg": null } } }, "Моя папка": {} }
+  },
+  goals: [
+    { type: "exists", path: "D:/Моя папка/nature.zip", kind: "zip", text: "У «Моїй папці» є архів nature.zip" },
+    {
+      type: "count",
+      folder: "D:/Моя папка/nature.zip",
+      equals: 8,
+      text: "В архіві лишилося 8 файлів",
+      hint: "В архів мали потрапити 10 файлів (photo01–photo10), а два з них треба перемістити в «Мою папку»."
+    },
+    { type: "exists", path: "D:/Моя папка/photo01.jpg", kind: "file", text: "photo01.jpg переміщено з архіву в «Мою папку»" },
+    { type: "exists", path: "D:/Моя папка/photo02.jpg", kind: "file", text: "photo02.jpg переміщено з архіву в «Мою папку»" },
+    { type: "absent", path: "D:/Моя папка/nature.zip/photo11.jpg", text: "В архіві немає зайвих файлів (photo11, photo12)" },
+    {
+      type: "count",
+      folder: "D:/Розділ 2/Пункт 2.1/Природа",
+      equals: 12,
+      text: "У папці «Природа» лишилися всі 12 файлів",
+      hint: "Стиснення робить копії, оригінали мають лишитися на місці."
+    }
+  ]
+}
+
+const extractZip: Scenario = {
+  id: "g8-extract",
+  grade: 8,
+  title: "Видобути файли з архіву",
+  task: [
+    "Відкрий папку D:\\Моя папка\\Копія архіву. У ній лежить архів pictures.zip.",
+    "Відкрий архів і видали з нього останні п'ять файлів (pic12–pic16).",
+    "Закрий архів. Клацни його правою кнопкою миші → «Видобути все…».",
+    "Перейменуй створену папку pictures на «Мої малюнки» і перемісти її в D:\\Моя папка."
+  ],
+  start: {},
+  drives: {
+    "C:": { Програми: {} },
+    "D:": { "Моя папка": { "Копія архіву": { "pictures.zip": { "pic01.png": null, "pic02.png": null, "pic03.png": null, "pic04.png": null, "pic05.png": null, "pic06.png": null, "pic07.png": null, "pic08.png": null, "pic09.png": null, "pic10.png": null, "pic11.png": null, "pic12.png": null, "pic13.png": null, "pic14.png": null, "pic15.png": null, "pic16.png": null } } } }
+  },
+  goals: [
+    { type: "count", folder: "D:/Моя папка/Копія архіву/pictures.zip", equals: 11, text: "В архіві лишилося 11 файлів" },
+    { type: "exists", path: "D:/Моя папка/Мої малюнки", kind: "folder", text: "У «Моїй папці» є папка «Мої малюнки»" },
+    {
+      type: "count",
+      folder: "D:/Моя папка/Мої малюнки",
+      equals: 11,
+      text: "У «Мої малюнки» видобуто 11 файлів",
+      hint: "Спершу видали з архіву 5 останніх файлів, потім «Видобути все…»."
+    }
+  ]
+}
+
+export const scenarios: ReadonlyArray<Scenario> = [animals, sortPictures, saveDrawing, grandma, filePath, contextMenu, saveText, saveImage, trip, exercise6, fileTypes, driveFolder, shortcuts, practical1, zipFolder, extractZip, fileJunk]
