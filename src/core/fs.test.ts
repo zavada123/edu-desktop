@@ -24,6 +24,14 @@ describe("names", () => {
     expect(validateName("Мої фото")).toBeNull()
   })
 
+  test("rejects reserved device names like Windows (textbook 4th grade, p. 50)", () => {
+    expect(validateName("NUL")).not.toBeNull()
+    expect(validateName("prn.txt")).not.toBeNull()
+    expect(validateName("Com1")).not.toBeNull()
+    expect(validateName("Inna")).toBeNull()
+    expect(validateName("Інна")).toBeNull()
+  })
+
   test("adds a number before the extension when the name is taken", () => {
     const taken = new Set(["море.jpg", "море (2).jpg"])
     expect(freeName("море.jpg", (n) => taken.has(n))).toBe("море (3).jpg")

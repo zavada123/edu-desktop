@@ -2,6 +2,8 @@
 
 export const MAX_NAME_LENGTH = 60
 export const FORBIDDEN_CHARS = ["\\", "/", ":", "*", "?", '"', "<", ">", "|"] as const
+/** Device names Windows reserves: a file or folder cannot be called `NUL` or `prn.txt`. */
+export const RESERVED_NAMES = ["CON", "PRN", "AUX", "NUL", ...[1, 2, 3, 4, 5, 6, 7, 8, 9].flatMap((n) => [`COM${n}`, `LPT${n}`])] as const
 
 /** Returns an error message in Ukrainian, or `null` when the name is valid. */
 export const validateName = (raw: string): string | null => {
@@ -12,6 +14,8 @@ export const validateName = (raw: string): string | null => {
   const bad = FORBIDDEN_CHARS.find((c) => name.includes(c))
   if (bad !== undefined) return `Назва не може містити символи ${FORBIDDEN_CHARS.join(" ")}`
   if (name.endsWith(".")) return "Назва не може закінчуватися крапкою"
+  const base = name.split(".")[0]?.toUpperCase() ?? ""
+  if ((RESERVED_NAMES as ReadonlyArray<string>).includes(base)) return `«${base}» — зарезервоване ім'я пристрою, так назвати не можна`
   return null
 }
 

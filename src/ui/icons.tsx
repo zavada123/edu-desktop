@@ -8,7 +8,7 @@ type IconKind = "folder" | "bin" | "binFull" | "image" | "text" | "doc" | "audio
 
 const IMAGE = ["jpg", "jpeg", "png", "gif", "bmp", "webp"]
 const TEXT = ["txt"]
-const DOC = ["doc", "docx", "odt", "rtf", "pdf"]
+const DOC = ["doc", "docx", "odt", "rtf", "pdf", "pptx", "xlsx"]
 const AUDIO = ["mp3", "wav", "ogg"]
 const VIDEO = ["mp4", "avi", "mkv", "webm"]
 
