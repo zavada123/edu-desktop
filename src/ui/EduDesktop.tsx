@@ -2,7 +2,7 @@ import { useCallback, useEffect, useReducer, useRef, useState } from "react"
 import { BIN_ID, childrenOf, DESKTOP_ID, getNode, isInBin, type NodeId, shortcutTarget, THIS_PC_ID } from "../core/fs.ts"
 import { allMet } from "../core/goals.ts"
 import { buildState } from "../core/tree.ts"
-import type { Scenario } from "../scenarios/types.ts"
+import type { AppKind, Scenario } from "../scenarios/types.ts"
 import { ConfirmDialog } from "./ConfirmDialog.tsx"
 import { ContextMenu } from "./ContextMenu.tsx"
 import { Explorer } from "./Explorer.tsx"
@@ -10,12 +10,16 @@ import { iconKindOf, ItemIcon, NodeIcon } from "./icons.tsx"
 import { ItemGrid } from "./ItemGrid.tsx"
 import { commandForKey } from "./keys.ts"
 import { usePointer } from "./pointer.ts"
-import { activeWin, initialState, reducer, titleOf } from "./store.ts"
+import { activeWin, APP_ID, initialState, reducer, titleOf } from "./store.ts"
+import { AppContent, APPS, appTitle } from "./AppWindow.tsx"
+import { SaveDialog } from "./SaveDialog.tsx"
 import { TaskPanel } from "./TaskPanel.tsx"
 import { Window } from "./Window.tsx"
 import "./desktop.css"
 
 const MESSAGE_MS = 4_000
+
+const APP_ICONS: Record<AppKind, string> = { paint: "🎨", text: "📝", browser: "🌐" }
 
 /** Typing in a name or address field keeps its own keys. */
 const isTextField = (target: EventTarget | null): boolean =>
@@ -29,10 +33,10 @@ interface Props {
 
 /** The whole trainer for one scenario. Can be embedded into any React page. */
 export const EduDesktop = ({ scenario, onCheck }: Props) => {
-  const [state, dispatch] = useReducer(reducer, scenario, (s) => initialState(buildState(s.start, s.drives)))
+  const [state, dispatch] = useReducer(reducer, scenario, (s) => initialState(buildState(s.start, s.drives), s.app !== undefined))
   const [taskOpen, setTaskOpen] = useState(true)
 
-  const reset = useCallback(() => dispatch({ type: "reset", fs: buildState(scenario.start, scenario.drives) }), [scenario])
+  const reset = useCallback(() => dispatch({ type: "reset", fs: buildState(scenario.start, scenario.drives), withApp: scenario.app !== undefined }), [scenario])
   useEffect(reset, [reset])
 
   useEffect(() => {
@@ -85,7 +89,7 @@ export const EduDesktop = ({ scenario, onCheck }: Props) => {
       if (!rootRef.current?.contains(e.target as Node)) focus.current = null
     }
     const onKeyDown = (e: KeyboardEvent) => {
-      if (focus.current === null || state.confirm !== null || isTextField(e.target)) return
+      if (focus.current === null || state.confirm !== null || state.saving || isTextField(e.target)) return
       // A closed window hands the keys to the one on top, as in Windows.
       const focused = state.windows.find((w) => w.id === focus.current && !w.minimized)
       const win = focus.current === "desktop" ? undefined : (focused ?? activeWin(state))
@@ -132,6 +136,16 @@ export const EduDesktop = ({ scenario, onCheck }: Props) => {
       <div className="ed-desktop">
         <ItemGrid state={state} containerId={DESKTOP_ID} items={desktopItems} bind={bind} dispatch={dispatch} variant="desktop" />
         {state.windows.map((win, i) => {
+          if (win.nodeId === APP_ID && scenario.app) {
+            // The program stays mounted while minimised, so the drawing is not lost.
+            return (
+              <div key={win.id} hidden={win.minimized}>
+                <Window win={win} title={appTitle(state, scenario.app)} icon={<span aria-hidden="true">{APP_ICONS[scenario.app.kind]}</span>} active={win.id === active?.id} zIndex={10 + i} dispatch={dispatch}>
+                  <AppContent app={scenario.app} state={state} dispatch={dispatch} />
+                </Window>
+              </div>
+            )
+          }
           const node = getNode(state.fs, win.nodeId)
           if (!node || win.minimized) return null
           return (
@@ -183,10 +197,16 @@ export const EduDesktop = ({ scenario, onCheck }: Props) => {
             className={`ed-task-btn ${win.id === active?.id ? "is-active" : ""}`}
             onClick={() => dispatch({ type: "taskbar", winId: win.id })}
           >
-            {titleOf(state, win.nodeId)}
+            {win.nodeId === APP_ID && scenario.app ? appTitle(state, scenario.app) : titleOf(state, win.nodeId)}
           </button>
         ))}
+        {scenario.app && !state.windows.some((w) => w.nodeId === APP_ID) && (
+          <button type="button" className="ed-task-btn" onClick={() => dispatch({ type: "openApp" })}>
+            {APP_ICONS[scenario.app.kind]} {APPS[scenario.app.kind].title}
+          </button>
+        )}
       </footer>
+      {state.saving && scenario.app && <SaveDialog state={state} app={scenario.app} dispatch={dispatch} />}
       {state.confirm && <ConfirmDialog state={state} confirm={state.confirm} dispatch={dispatch} />}
       {state.menu && <ContextMenu state={state} menu={state.menu} dispatch={dispatch} onOpen={(id) => open(id)} />}
       {state.message && (

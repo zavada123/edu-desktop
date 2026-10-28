@@ -51,12 +51,24 @@ export interface DesktopState {
   readonly confirm: Confirm | null
   readonly message: string | null
   readonly results: ReadonlyArray<GoalResult> | null
+  /** The «Зберегти як» window of the program is open. */
+  readonly saving: boolean
+  /** File the program saved its work to; shown in its title. */
+  readonly savedAs: NodeId | null
 }
+
+/** Window id of the scenario's program (Paint, text editor, browser); it is not a file-system node. */
+export const APP_ID: NodeId = "app"
 
 type Ids = ReadonlyArray<NodeId>
 
 export type Action =
-  | { readonly type: "reset"; readonly fs: FsState }
+  | { readonly type: "reset"; readonly fs: FsState; readonly withApp?: boolean }
+  | { readonly type: "openApp" }
+  | { readonly type: "openSave" }
+  | { readonly type: "closeSave" }
+  | { readonly type: "saveFile"; readonly folderId: NodeId; readonly name: string; readonly ext: string }
+  | { readonly type: "newFolder"; readonly containerId: NodeId; readonly name: string }
   | { readonly type: "open"; readonly nodeId: NodeId }
   | { readonly type: "navigate"; readonly winId: number; readonly nodeId: NodeId }
   | { readonly type: "back"; readonly winId: number }
@@ -90,7 +102,12 @@ export type Action =
   | { readonly type: "notify"; readonly message: string }
   | { readonly type: "dismiss" }
 
-export const initialState = (fsState: FsState): DesktopState => ({
+export const initialState = (fsState: FsState, withApp = false): DesktopState => {
+  const empty = blankState(fsState)
+  return withApp ? openWin(empty, APP_ID) : empty
+}
+
+const blankState = (fsState: FsState): DesktopState => ({
   fs: fsState,
   windows: [],
   nextWinId: 1,
@@ -101,7 +118,9 @@ export const initialState = (fsState: FsState): DesktopState => ({
   menu: null,
   confirm: null,
   message: null,
-  results: null
+  results: null,
+  saving: false,
+  savedAs: null
 })
 
 const CASCADE_STEP = 28
@@ -110,7 +129,7 @@ const CASCADE_SIZE = 6
 /** Windows whose folder or file no longer exists (bin emptied) are closed. */
 const closeMissing = (state: DesktopState): DesktopState => ({
   ...state,
-  windows: state.windows.filter((w) => fs.getNode(state.fs, w.nodeId) !== undefined),
+  windows: state.windows.filter((w) => w.nodeId === APP_ID || fs.getNode(state.fs, w.nodeId) !== undefined),
   selected: state.selected.filter((id) => fs.getNode(state.fs, id) !== undefined)
 })
 
@@ -205,7 +224,17 @@ const paste = (state: DesktopState, targetId: NodeId): DesktopState => {
 export const reducer = (state: DesktopState, action: Action): DesktopState => {
   switch (action.type) {
     case "reset":
-      return initialState(action.fs)
+      return initialState(action.fs, action.withApp)
+    case "openApp":
+      return openWin(state, APP_ID)
+    case "openSave":
+      return { ...state, saving: true, menu: null }
+    case "closeSave":
+      return { ...state, saving: false }
+    case "saveFile":
+      return applyFs(state, fs.saveFile(state.fs, action.folderId, action.name, action.ext), (s, id) => ({ ...s, saving: false, savedAs: id }))
+    case "newFolder":
+      return applyFs(state, fs.create(state.fs, action.containerId, "folder", action.name))
     case "open":
       return fs.getNode(state.fs, action.nodeId) ? openWin(state, action.nodeId) : state
     case "navigate":

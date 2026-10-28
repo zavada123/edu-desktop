@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest"
-import { BIN_ID, childrenOf, copy, create, createShortcut, deleteForever, DESKTOP_ID, driveId, emptyBin, findByPath, type FsResult, type FsState, move, pathOf, remove, rename, restore, THIS_PC_ID, resolveAddress, shortcutTarget, windowsPath } from "./fs.ts"
+import { BIN_ID, childrenOf, copy, create, createShortcut, deleteForever, DESKTOP_ID, driveId, emptyBin, findByPath, type FsResult, type FsState, move, pathOf, remove, rename, restore, THIS_PC_ID, resolveAddress, saveFile, shortcutTarget, windowsPath } from "./fs.ts"
 import { freeName, validateName } from "./names.ts"
 import { buildState } from "./tree.ts"
 
@@ -223,5 +223,18 @@ describe("shortcuts", () => {
     const state = buildState({ "Ігри – ярлик": "D:/Ігри" }, { "D:": { Ігри: {} } })
     expect(findByPath(state, "Ігри – ярлик")?.target).toBe(findByPath(state, "D:/Ігри")?.id)
     expect(() => buildState({ "x – ярлик": "D:/Немає" })).toThrow()
+  })
+})
+
+describe("«Зберегти як»", () => {
+  test("adds the extension, keeps a typed one, refuses an existing name", () => {
+    const saved = ok(saveFile(start, DESKTOP_ID, "Україна", ".png"))
+    expect(findByPath(saved, "Україна.png")).toBeDefined()
+    expect(findByPath(ok(saveFile(start, DESKTOP_ID, "мапа.PNG", ".png")), "мапа.PNG")).toBeDefined()
+    const again = saveFile(saved, DESKTOP_ID, "україна", ".png")
+    expect(again.ok).toBe(false)
+    expect(saveFile(start, DESKTOP_ID, "  ", ".png").ok).toBe(false)
+    expect(saveFile(start, THIS_PC_ID, "x", ".png").ok).toBe(false)
+    expect(saveFile(start, DESKTOP_ID, "a?b", ".png").ok).toBe(false)
   })
 })

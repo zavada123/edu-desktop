@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest"
 import { BIN_ID, childrenOf, DESKTOP_ID, driveId, findByPath, type FsState } from "../core/fs.ts"
 import { buildState } from "../core/tree.ts"
-import { type Action, type DesktopState, initialState, reducer } from "./store.ts"
+import { type Action, APP_ID, type DesktopState, initialState, reducer } from "./store.ts"
 
 const idOf = (state: FsState, path: string): string => {
   const node = findByPath(state, path)
@@ -96,5 +96,23 @@ describe("shortcuts", () => {
   test("a shortcut to a drive goes to the desktop", () => {
     const state = run(start, { type: "shortcut", ids: [driveId("D")], targetId: null })
     expect(findByPath(state.fs, "Локальний диск (D:) – ярлик")?.target).toBe(driveId("D"))
+  })
+})
+
+describe("program and «Зберегти як»", () => {
+  test("the program window opens at the start and survives file changes", () => {
+    const state = initialState(start.fs, true)
+    expect(state.windows.map((w) => w.nodeId)).toEqual([APP_ID])
+    expect(run(state, { type: "create", containerId: DESKTOP_ID, kind: "folder" }).windows).toHaveLength(1)
+  })
+
+  test("saving closes the dialog and remembers the file; an existing name keeps it open", () => {
+    const asked = run(initialState(start.fs, true), { type: "openSave" })
+    const saved = run(asked, { type: "saveFile", folderId: idOf(start.fs, "Тварини"), name: "Україна", ext: ".png" })
+    expect(saved.saving).toBe(false)
+    expect(saved.savedAs).toBe(idOf(saved.fs, "Тварини/Україна.png"))
+    const twice = run(saved, { type: "openSave" }, { type: "saveFile", folderId: idOf(start.fs, "Тварини"), name: "Україна", ext: ".png" })
+    expect(twice.saving).toBe(true)
+    expect(twice.message).toContain("уже є")
   })
 })

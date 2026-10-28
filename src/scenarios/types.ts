@@ -1,6 +1,15 @@
 import type { Goal } from "../core/goals.ts"
 import type { DrivesSpec, TreeSpec } from "../core/tree.ts"
 
+/** A program the scenario starts with; its work is saved through «Зберегти як». */
+export type AppKind = "paint" | "text" | "browser"
+
+export interface AppSpec {
+  readonly kind: AppKind
+  /** Name offered in the «Ім'я файлу» field. */
+  readonly fileName?: string
+}
+
 /** One exercise: what is on the desktop at the start, what to do, and how to check it. */
 export interface Scenario {
   readonly id: string
@@ -14,4 +23,6 @@ export interface Scenario {
   readonly goals: ReadonlyArray<Goal>
   /** Large icons and text for younger students (grades 3–4). */
   readonly large?: boolean
+  /** Opens this program at the start (Paint, a text editor, a browser with a picture). */
+  readonly app?: AppSpec
 }

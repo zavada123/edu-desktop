@@ -657,3 +657,272 @@
   border-color: var(--ed-accent);
   color: #fff !important;
 }
+
+/* Programs: Paint, text editor, browser */
+
+.ed-app,
+.ed-browser {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.ed-app-menubar {
+  position: relative;
+  display: flex;
+  padding: 2px 6px;
+  border-bottom: 1px solid var(--ed-line);
+}
+
+.ed-app-menubar > button {
+  min-height: 32px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.ed-app-menubar > button:hover,
+.ed-app-menubar > button[aria-expanded="true"] {
+  background: var(--ed-accent-soft);
+}
+
+.ed-app-filemenu {
+  position: absolute;
+  left: 6px;
+  top: 36px;
+}
+
+.ed-paint {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px;
+  background: #e9eef5;
+}
+
+.ed-paint-colors {
+  display: flex;
+  gap: 6px;
+}
+
+.ed-paint-colors button {
+  width: 30px;
+  height: 30px;
+  border: 2px solid #9aa7ba;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.ed-paint-colors button.is-on {
+  outline: 3px solid var(--ed-accent);
+  outline-offset: 1px;
+}
+
+.ed-paint canvas {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  object-fit: contain;
+  background: #fff;
+  border: 1px solid #9aa7ba;
+  touch-action: none;
+  cursor: crosshair;
+}
+
+.ed-text-editor {
+  flex: 1;
+  min-height: 0;
+  padding: 12px;
+  border: 0;
+  resize: none;
+  font: inherit;
+}
+
+.ed-browser {
+  padding: 10px;
+  gap: 8px;
+  overflow: auto;
+}
+
+.ed-browser-bar {
+  padding: 8px 12px;
+  border: 1px solid var(--ed-line);
+  border-radius: 18px;
+  background: #f7f9fc;
+}
+
+.ed-browser-hint {
+  margin: 0;
+  color: var(--ed-muted);
+  font-size: 13px;
+}
+
+.ed-browser-picture {
+  position: relative;
+  margin: 0;
+  max-width: 360px;
+  -webkit-touch-callout: none;
+  user-select: none;
+}
+
+.ed-browser-picture svg {
+  display: block;
+  width: 100%;
+  border-radius: 6px;
+}
+
+.ed-browser-menu {
+  position: absolute;
+}
+
+/* «Зберегти як» */
+
+.ed-dialog.ed-save {
+  width: min(680px, 100%);
+  max-height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.ed-save-nav {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--ed-line);
+}
+
+.ed-save-nav button {
+  min-height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--ed-line);
+  border-radius: 6px;
+  background: #f7f9fc;
+  cursor: pointer;
+}
+
+.ed-save-nav button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.ed-save-path {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 8px;
+  border: 1px solid var(--ed-line);
+  border-radius: 4px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.ed-save-body {
+  display: flex;
+  min-height: 0;
+  height: 240px;
+}
+
+.ed-save-places,
+.ed-save-list {
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  overflow: auto;
+}
+
+.ed-save-places {
+  flex: 0 0 190px;
+  border-right: 1px solid var(--ed-line);
+}
+
+.ed-save-list {
+  flex: 1;
+}
+
+.ed-save-places button,
+.ed-save-list button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 2px 8px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ed-save-places button:hover,
+.ed-save-list button:hover,
+.ed-save-places button.is-on {
+  background: var(--ed-accent-soft);
+}
+
+.ed-save-list button.is-file {
+  color: var(--ed-muted);
+}
+
+.ed-save-fields {
+  display: grid;
+  gap: 6px;
+  padding: 10px 16px;
+  border-top: 1px solid var(--ed-line);
+}
+
+.ed-save-fields label {
+  display: grid;
+  grid-template-columns: 100px 1fr;
+  align-items: center;
+  gap: 8px;
+}
+
+.ed-save-fields input {
+  min-height: 34px;
+  padding: 0 8px;
+  border: 1px solid #9aa7ba;
+  border-radius: 4px;
+  font: inherit;
+}
+
+.ed-save-fields input[readonly] {
+  background: #f1f4f8;
+  color: var(--ed-muted);
+}
+
+.ed-save-error {
+  margin: 0;
+  color: var(--ed-bad);
+}
+
+@media (max-width: 700px) {
+  .ed-save-body {
+    flex-direction: column;
+    height: 45vh;
+  }
+
+  .ed-save-places {
+    flex: 0 0 auto;
+    display: flex;
+    border-right: 0;
+    border-bottom: 1px solid var(--ed-line);
+  }
+
+  .ed-save-places button {
+    width: auto;
+    white-space: nowrap;
+  }
+
+  .ed-save-fields label {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+}

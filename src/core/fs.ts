@@ -157,6 +157,19 @@ export const create = (state: FsState, parentId: NodeId, kind: NodeKind, wantedN
   return { ok: true, id, state: put({ ...state, nextId: state.nextId + 1 }, { id, name, kind, parentId }) }
 }
 
+/**
+ * «Зберегти як»: a new file `name` in `folderId`. The extension is added when the student did not type it.
+ * Unlike «Створити», an existing name is an error, not «(2)»: the student chooses another name.
+ */
+export const saveFile = (state: FsState, folderId: NodeId, name: string, ext: string): FsResult => {
+  const trimmed = name.trim()
+  const fileName = trimmed.toLocaleLowerCase("uk").endsWith(ext.toLocaleLowerCase("uk")) ? trimmed : `${trimmed}${ext}`
+  if (trimmed.length === 0) return fail("Введи ім'я файлу")
+  if (folderId === BIN_ID) return fail("У кошик не можна зберігати файли")
+  if (findChild(state, folderId, fileName)) return fail(`Файл «${fileName}» уже є в цій папці. Введи інше ім'я.`)
+  return create(state, folderId, "file", fileName)
+}
+
 export const rename = (state: FsState, id: NodeId, newName: string): FsResult => {
   const node = getNode(state, id)
   if (!node || isSystem(id)) return fail("Цей об'єкт не можна перейменувати")

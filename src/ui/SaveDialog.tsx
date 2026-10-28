@@ -1,0 +1,153 @@
+import { useEffect, useRef, useState } from "react"
+import { BIN_ID, childrenOf, DESKTOP_ID, DRIVE_LETTERS, displayName, driveId, getNode, type NodeId, saveFile, THIS_PC_ID, windowsPath } from "../core/fs.ts"
+import { APPS } from "./AppWindow.tsx"
+import { ItemIcon, NodeIcon } from "./icons.tsx"
+import type { Action, DesktopState } from "./store.ts"
+import type { AppSpec } from "../scenarios/types.ts"
+
+const PLACES: ReadonlyArray<NodeId> = [DESKTOP_ID, THIS_PC_ID, ...DRIVE_LETTERS.map(driveId)]
+
+const placeLabel = (state: DesktopState, id: NodeId): string => {
+  if (id === DESKTOP_ID) return "Робочий стіл"
+  const node = getNode(state.fs, id)
+  return node ? displayName(node) : ""
+}
+
+interface Props {
+  readonly state: DesktopState
+  readonly app: AppSpec
+  readonly dispatch: (action: Action) => void
+}
+
+/**
+ * «Зберегти як» as the textbooks show it (4 клас, с. 21): places on the left, folders of the current one,
+ * «Ім'я файлу», «Тип файлу», «Зберегти» and «Скасувати». A tap on a folder opens it.
+ */
+export const SaveDialog = ({ state, app, dispatch }: Props) => {
+  const { ext, typeLabel, fileName } = APPS[app.kind]
+  const [folderId, setFolderId] = useState<NodeId>(DESKTOP_ID)
+  const [name, setName] = useState(app.fileName ?? fileName)
+  const [newFolder, setNewFolder] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  // Enter removes the input, and its blur would create the folder a second time.
+  const folderDone = useRef(false)
+  const nameRef = useRef<HTMLInputElement>(null)
+  useEffect(() => nameRef.current?.select(), [])
+
+  const go = (id: NodeId) => {
+    setFolderId(id)
+    setError(null)
+  }
+  const parentId = getNode(state.fs, folderId)?.parentId ?? null
+  const items = childrenOf(state.fs, folderId)
+
+  const save = () => {
+    const result = saveFile(state.fs, folderId, name, ext)
+    if (!result.ok) return setError(result.error)
+    dispatch({ type: "saveFile", folderId, name, ext })
+  }
+  const startFolder = () => {
+    folderDone.current = false
+    setNewFolder("Нова папка")
+  }
+  const makeFolder = (folderName: string) => {
+    if (folderDone.current) return
+    folderDone.current = true
+    setNewFolder(null)
+    if (folderName.trim().length > 0) dispatch({ type: "newFolder", containerId: folderId, name: folderName })
+  }
+
+  return (
+    <div className="ed-modal-backdrop">
+      <div className="ed-dialog ed-save" role="dialog" aria-modal="true" aria-labelledby="ed-save-title" onKeyDown={(e) => e.key === "Escape" && dispatch({ type: "closeSave" })}>
+        <div className="ed-titlebar">
+          <span id="ed-save-title" className="ed-title">
+            {app.kind === "browser" ? "Зберегти зображення як" : "Зберегти як"}
+          </span>
+          <button type="button" className="ed-tb-btn ed-close" aria-label="Закрити" onClick={() => dispatch({ type: "closeSave" })}>
+            ✕
+          </button>
+        </div>
+        <div className="ed-save-nav">
+          <button type="button" disabled={parentId === null} onClick={() => parentId !== null && go(parentId)} aria-label="Вгору">
+            ↑
+          </button>
+          <span className="ed-save-path">{windowsPath(state.fs, folderId)}</span>
+          <button type="button" disabled={folderId === THIS_PC_ID} onClick={startFolder}>
+            ＋ Нова папка
+          </button>
+        </div>
+        <div className="ed-save-body">
+          <ul className="ed-save-places" aria-label="Розташування">
+            {PLACES.filter((id) => getNode(state.fs, id) || id === DESKTOP_ID).map((id) => (
+              <li key={id}>
+                <button type="button" className={id === folderId ? "is-on" : ""} onClick={() => go(id)}>
+                  <NodeIcon kind={id === DESKTOP_ID ? "folder" : id === THIS_PC_ID ? "pc" : "drive"} size={20} />
+                  {placeLabel(state, id)}
+                </button>
+              </li>
+            ))}
+          </ul>
+          <ul className="ed-save-list" aria-label="Вміст папки">
+            {newFolder !== null && (
+              <li>
+                <input
+                  className="ed-rename"
+                  aria-label="Назва нової папки"
+                  autoFocus
+                  defaultValue={newFolder}
+                  onFocus={(e) => e.currentTarget.select()}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") makeFolder(e.currentTarget.value)
+                    if (e.key === "Escape") {
+                      e.stopPropagation()
+                      folderDone.current = true
+                      setNewFolder(null)
+                    }
+                  }}
+                  onBlur={(e) => makeFolder(e.currentTarget.value)}
+                />
+              </li>
+            )}
+            {items.map((node) => (
+              <li key={node.id}>
+                <button
+                  type="button"
+                  className={node.kind === "folder" ? "" : "is-file"}
+                  onClick={() => (node.kind === "folder" && node.id !== BIN_ID ? go(node.id) : node.kind === "file" && setName(node.name))}
+                >
+                  <ItemIcon fs={state.fs} node={node} binHasItems={false} size={24} />
+                  {displayName(node)}
+                </button>
+              </li>
+            ))}
+            {items.length === 0 && newFolder === null && <li className="ed-empty">Ця папка порожня</li>}
+          </ul>
+        </div>
+        <div className="ed-save-fields">
+          <label>
+            Ім'я файлу:
+            <input ref={nameRef} value={name} spellCheck={false} onChange={(e) => (setName(e.target.value), setError(null))} onKeyDown={(e) => e.key === "Enter" && save()} />
+          </label>
+          <label>
+            Тип файлу:
+            <input value={typeLabel} readOnly tabIndex={-1} />
+          </label>
+          {error && (
+            <p className="ed-save-error" role="alert">
+              {error}
+            </p>
+          )}
+        </div>
+        <div className="ed-dialog-actions">
+          <button type="button" className="ed-yes" onClick={save}>
+            Зберегти
+          </button>
+          <button type="button" onClick={() => dispatch({ type: "closeSave" })}>
+            Скасувати
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
