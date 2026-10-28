@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest"
-import { BIN_ID, childrenOf, copy, create, deleteForever, DESKTOP_ID, driveId, emptyBin, findByPath, type FsResult, type FsState, move, pathOf, remove, rename, restore, THIS_PC_ID, resolveAddress, windowsPath } from "./fs.ts"
+import { BIN_ID, childrenOf, copy, create, createShortcut, deleteForever, DESKTOP_ID, driveId, emptyBin, findByPath, type FsResult, type FsState, move, pathOf, remove, rename, restore, THIS_PC_ID, resolveAddress, shortcutTarget, windowsPath } from "./fs.ts"
 import { freeName, validateName } from "./names.ts"
 import { buildState } from "./tree.ts"
 
@@ -181,5 +181,47 @@ describe("resolveAddress", () => {
   test("returns null for files and missing folders", () => {
     expect(resolveAddress(withDrives, "Робочий стіл\\Мої фото\\ліс.jpg")).toBeNull()
     expect(resolveAddress(withDrives, "C:\\Немає")).toBeNull()
+  })
+})
+
+describe("shortcuts", () => {
+  const start = buildState({ "вірш.txt": null }, { "D:": { "Моя папка": { "нотатки.txt": null } } })
+  const folder = findByPath(start, "D:/Моя папка")?.id ?? ""
+
+  test("a shortcut is named «… – ярлик» and opens its object", () => {
+    const made = ok(createShortcut(start, folder, DESKTOP_ID))
+    const shortcut = findByPath(made, "Моя папка – ярлик")
+    expect(shortcut?.target).toBe(folder)
+    expect(shortcut && shortcutTarget(made, shortcut)?.id).toBe(folder)
+  })
+
+  test("deleting a shortcut leaves the object; deleting the object breaks the shortcut", () => {
+    const made = ok(createShortcut(start, folder, DESKTOP_ID))
+    const shortcutId = findByPath(made, "Моя папка – ярлик")?.id ?? ""
+    expect(findByPath(ok(remove(made, shortcutId)), "D:/Моя папка/нотатки.txt")).toBeDefined()
+    const broken = ok(remove(made, folder))
+    const shortcut = findByPath(broken, "Моя папка – ярлик")
+    expect(shortcut && shortcutTarget(broken, shortcut)).toBeUndefined()
+  })
+
+  test("a shortcut to a shortcut points at the same object; copies keep the target", () => {
+    const first = ok(createShortcut(start, folder, DESKTOP_ID))
+    const firstId = findByPath(first, "Моя папка – ярлик")?.id ?? ""
+    const second = ok(createShortcut(first, firstId, DESKTOP_ID))
+    expect(findByPath(second, "Моя папка – ярлик (2)")?.target).toBe(folder)
+    const copied = ok(copy(first, firstId, folder))
+    expect(findByPath(copied, "D:/Моя папка/Моя папка – ярлик")?.target).toBe(folder)
+  })
+
+  test("no shortcuts to items in the bin or into the bin", () => {
+    const poem = findByPath(start, "вірш.txt")?.id ?? ""
+    expect(createShortcut(ok(remove(start, poem)), poem, DESKTOP_ID).ok).toBe(false)
+    expect(createShortcut(start, poem, BIN_ID).ok).toBe(false)
+  })
+
+  test("scenario trees describe shortcuts as a path string", () => {
+    const state = buildState({ "Ігри – ярлик": "D:/Ігри" }, { "D:": { Ігри: {} } })
+    expect(findByPath(state, "Ігри – ярлик")?.target).toBe(findByPath(state, "D:/Ігри")?.id)
+    expect(() => buildState({ "x – ярлик": "D:/Немає" })).toThrow()
   })
 })

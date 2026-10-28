@@ -11,7 +11,7 @@ interface Props {
   readonly children: React.ReactNode
 }
 
-/** Window frame: title bar to drag, maximise and close buttons. On phones it always fills the screen (CSS). */
+/** Window frame: title bar to drag, minimise, maximise and close buttons. On phones it always fills the screen (CSS). */
 export const Window = ({ win, title, icon, active, zIndex, dispatch, children }: Props) => {
   const dragStart = useRef<{ dx: number; dy: number } | null>(null)
 
@@ -42,6 +42,9 @@ export const Window = ({ win, title, icon, active, zIndex, dispatch, children }:
       >
         <span className="ed-title-icon">{icon}</span>
         <span className="ed-title">{title}</span>
+        <button type="button" className="ed-tb-btn ed-min" aria-label="Згорнути" onClick={() => dispatch({ type: "minimize", winId: win.id })}>
+          ─
+        </button>
         <button type="button" className="ed-tb-btn ed-max" aria-label="Розгорнути" onClick={() => dispatch({ type: "toggleMax", winId: win.id })}>
           ▢
         </button>

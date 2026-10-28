@@ -11,6 +11,8 @@ export interface Win {
   readonly x: number
   readonly y: number
   readonly maximized: boolean
+  /** Hidden on the taskbar («Згорнути»); its taskbar button brings it back. */
+  readonly minimized: boolean
   readonly history: ReadonlyArray<NodeId>
 }
 
@@ -63,6 +65,9 @@ export type Action =
   | { readonly type: "focus"; readonly winId: number }
   | { readonly type: "moveWin"; readonly winId: number; readonly x: number; readonly y: number }
   | { readonly type: "toggleMax"; readonly winId: number }
+  | { readonly type: "minimize"; readonly winId: number }
+  /** Taskbar button: as in Windows, it minimises the active window and brings back any other. */
+  | { readonly type: "taskbar"; readonly winId: number }
   | { readonly type: "select"; readonly nodeId: NodeId | null; readonly additive: boolean }
   | { readonly type: "selectAll"; readonly containerId: NodeId }
   | { readonly type: "toggleMulti" }
@@ -75,6 +80,8 @@ export type Action =
   | { readonly type: "confirm" }
   | { readonly type: "cancelConfirm" }
   | { readonly type: "restore"; readonly ids: Ids }
+  /** «Створити ярлик» (`targetId` null: next to each item) or «Надіслати → Робочий стіл» (`targetId` = desktop). */
+  | { readonly type: "shortcut"; readonly ids: Ids; readonly targetId: NodeId | null }
   | { readonly type: "clip"; readonly mode: Clipboard["mode"]; readonly ids: Ids }
   | { readonly type: "paste"; readonly targetId: NodeId }
   | { readonly type: "drop"; readonly ids: Ids; readonly targetId: NodeId; readonly copy: boolean }
@@ -137,15 +144,18 @@ const updateWin = (state: DesktopState, winId: number, change: (w: Win) => Win):
 
 const focusWin = (state: DesktopState, winId: number): DesktopState => {
   const win = state.windows.find((w) => w.id === winId)
-  if (!win || state.windows.at(-1)?.id === winId) return state
-  return { ...state, windows: [...state.windows.filter((w) => w.id !== winId), win] }
+  if (!win || (state.windows.at(-1)?.id === winId && !win.minimized)) return state
+  return { ...state, windows: [...state.windows.filter((w) => w.id !== winId), { ...win, minimized: false }] }
 }
+
+/** The window on top that is not minimised. */
+export const activeWin = (state: DesktopState): Win | undefined => state.windows.findLast((w) => !w.minimized)
 
 const openWin = (state: DesktopState, nodeId: NodeId): DesktopState => {
   const existing = state.windows.find((w) => w.nodeId === nodeId)
   if (existing) return focusWin({ ...state, menu: null }, existing.id)
   const offset = ((state.nextWinId - 1) % CASCADE_SIZE) * CASCADE_STEP
-  const win: Win = { id: state.nextWinId, nodeId, x: 40 + offset, y: 30 + offset, maximized: false, history: [] }
+  const win: Win = { id: state.nextWinId, nodeId, x: 40 + offset, y: 30 + offset, maximized: false, minimized: false, history: [] }
   return { ...state, windows: [...state.windows, win], nextWinId: state.nextWinId + 1, menu: null, selected: [] }
 }
 
@@ -219,6 +229,19 @@ export const reducer = (state: DesktopState, action: Action): DesktopState => {
       return updateWin(state, action.winId, (w) => ({ ...w, x: Math.max(0, action.x), y: Math.max(0, action.y) }))
     case "toggleMax":
       return updateWin(state, action.winId, (w) => ({ ...w, maximized: !w.maximized }))
+    case "minimize":
+      return updateWin({ ...state, menu: null }, action.winId, (w) => ({ ...w, minimized: true }))
+    case "taskbar":
+      return activeWin(state)?.id === action.winId
+        ? updateWin(state, action.winId, (w) => ({ ...w, minimized: true }))
+        : focusWin(state, action.winId)
+    case "shortcut":
+      return applyEach(state, action.ids, (s, id) => {
+        const parent = fs.getNode(s, id)?.parentId ?? DESKTOP_ID
+        // In «Цей ПК» only drives live, so Windows offers the desktop instead.
+        const home = action.targetId ?? (parent === fs.THIS_PC_ID ? DESKTOP_ID : parent)
+        return fs.createShortcut(s, id, home)
+      })
     case "select":
       return select(state, action.nodeId, action.additive || state.multi)
     case "selectAll":

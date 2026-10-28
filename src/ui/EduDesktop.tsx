@@ -1,16 +1,16 @@
 import { useCallback, useEffect, useReducer, useRef, useState } from "react"
-import { BIN_ID, childrenOf, DESKTOP_ID, getNode, isInBin, type NodeId, THIS_PC_ID } from "../core/fs.ts"
+import { BIN_ID, childrenOf, DESKTOP_ID, getNode, isInBin, type NodeId, shortcutTarget, THIS_PC_ID } from "../core/fs.ts"
 import { allMet } from "../core/goals.ts"
 import { buildState } from "../core/tree.ts"
 import type { Scenario } from "../scenarios/types.ts"
 import { ConfirmDialog } from "./ConfirmDialog.tsx"
 import { ContextMenu } from "./ContextMenu.tsx"
 import { Explorer } from "./Explorer.tsx"
-import { iconKindOf, NodeIcon } from "./icons.tsx"
+import { iconKindOf, ItemIcon, NodeIcon } from "./icons.tsx"
 import { ItemGrid } from "./ItemGrid.tsx"
 import { commandForKey } from "./keys.ts"
 import { usePointer } from "./pointer.ts"
-import { initialState, reducer, titleOf } from "./store.ts"
+import { activeWin, initialState, reducer, titleOf } from "./store.ts"
 import { TaskPanel } from "./TaskPanel.tsx"
 import { Window } from "./Window.tsx"
 import "./desktop.css"
@@ -45,13 +45,22 @@ export const EduDesktop = ({ scenario, onCheck }: Props) => {
     if (state.results !== null) onCheck?.(allMet(state.results))
   }, [state.results, onCheck])
 
-  /** Double tap: a folder opens in the same window (or a new one from the desktop), a file opens a viewer. */
+  /**
+   * Double tap: a folder opens in the same window (or a new one from the desktop), a file opens a viewer,
+   * a shortcut opens its object.
+   */
   const open = useCallback(
-    (nodeId: NodeId, fromWinId?: number) => {
+    (nodeId: NodeId, fromWinId?: number): void => {
       const node = getNode(state.fs, nodeId)
       if (!node) return
       if (nodeId !== BIN_ID && isInBin(state.fs, nodeId)) {
         dispatch({ type: "notify", message: "Об'єкт у кошику. Щоб відкрити, спершу віднови його." })
+        return
+      }
+      if (node.target !== undefined) {
+        const target = shortcutTarget(state.fs, node)
+        if (target) open(target.id, fromWinId)
+        else dispatch({ type: "notify", message: "Ярлик не працює: об'єкт, на який він указує, видалено." })
         return
       }
       if (node.kind === "folder" && fromWinId !== undefined) dispatch({ type: "navigate", winId: fromWinId, nodeId })
@@ -78,7 +87,8 @@ export const EduDesktop = ({ scenario, onCheck }: Props) => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (focus.current === null || state.confirm !== null || isTextField(e.target)) return
       // A closed window hands the keys to the one on top, as in Windows.
-      const win = focus.current === "desktop" ? undefined : (state.windows.find((w) => w.id === focus.current) ?? state.windows.at(-1))
+      const focused = state.windows.find((w) => w.id === focus.current && !w.minimized)
+      const win = focus.current === "desktop" ? undefined : (focused ?? activeWin(state))
       const folderId = win?.nodeId ?? DESKTOP_ID
       if (getNode(state.fs, folderId)?.kind !== "folder") return
       const command = commandForKey(state, { key: e.key, code: e.code, ctrl: e.ctrlKey || e.metaKey }, folderId)
@@ -111,6 +121,7 @@ export const EduDesktop = ({ scenario, onCheck }: Props) => {
   })
 
   const binHasItems = childrenOf(state.fs, BIN_ID).length > 0
+  const active = activeWin(state)
   const systemIcons = [getNode(state.fs, THIS_PC_ID), getNode(state.fs, BIN_ID)].filter((n) => n !== undefined)
   const desktopItems = [...systemIcons, ...childrenOf(state.fs, DESKTOP_ID)]
   const dragged = drag ? getNode(state.fs, drag.nodeId) : undefined
@@ -122,14 +133,14 @@ export const EduDesktop = ({ scenario, onCheck }: Props) => {
         <ItemGrid state={state} containerId={DESKTOP_ID} items={desktopItems} bind={bind} dispatch={dispatch} variant="desktop" />
         {state.windows.map((win, i) => {
           const node = getNode(state.fs, win.nodeId)
-          if (!node) return null
+          if (!node || win.minimized) return null
           return (
             <Window
               key={win.id}
               win={win}
               title={titleOf(state, win.nodeId)}
               icon={<NodeIcon kind={iconKindOf(node, binHasItems)} size={18} />}
-              active={i === state.windows.length - 1}
+              active={win.id === active?.id}
               zIndex={10 + i}
               dispatch={dispatch}
             >
@@ -166,7 +177,12 @@ export const EduDesktop = ({ scenario, onCheck }: Props) => {
           ☑ Вибрати кілька
         </button>
         {state.windows.map((win) => (
-          <button key={win.id} type="button" className="ed-task-btn" onClick={() => dispatch({ type: "focus", winId: win.id })}>
+          <button
+            key={win.id}
+            type="button"
+            className={`ed-task-btn ${win.id === active?.id ? "is-active" : ""}`}
+            onClick={() => dispatch({ type: "taskbar", winId: win.id })}
+          >
             {titleOf(state, win.nodeId)}
           </button>
         ))}
@@ -180,7 +196,7 @@ export const EduDesktop = ({ scenario, onCheck }: Props) => {
       )}
       {drag && dragged && (
         <div className="ed-ghost" style={{ left: drag.x, top: drag.y }}>
-          <NodeIcon kind={iconKindOf(dragged, binHasItems)} size={40} />
+          <ItemIcon fs={state.fs} node={dragged} binHasItems={binHasItems} size={40} />
           <span>
             {drag.copy ? "＋ " : ""}
             {dragCount > 1 ? `${dragCount} об'єкти` : dragged.name}

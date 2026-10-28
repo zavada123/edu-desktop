@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest"
-import { BIN_ID, childrenOf, findByPath, type FsState } from "../core/fs.ts"
+import { BIN_ID, childrenOf, DESKTOP_ID, driveId, findByPath, type FsState } from "../core/fs.ts"
 import { buildState } from "../core/tree.ts"
 import { type Action, type DesktopState, initialState, reducer } from "./store.ts"
 
@@ -70,5 +70,31 @@ describe("drag several items", () => {
     const state = run(withCopy, { type: "drop", ids: [dog, cat], targetId: idOf(start.fs, "Тварини"), copy: false })
     expect(state.message).not.toBeNull()
     expect(findByPath(state.fs, "собака.png")).toBeDefined()
+  })
+})
+
+describe("windows on the taskbar", () => {
+  test("«Згорнути» hides a window; its taskbar button brings it back, a second press hides it again", () => {
+    const opened = run(start, { type: "open", nodeId: idOf(start.fs, "Документи") })
+    const winId = opened.windows[0]?.id ?? 0
+    const hidden = run(opened, { type: "minimize", winId })
+    expect(hidden.windows[0]?.minimized).toBe(true)
+    const back = run(hidden, { type: "taskbar", winId })
+    expect(back.windows[0]?.minimized).toBe(false)
+    expect(run(back, { type: "taskbar", winId }).windows[0]?.minimized).toBe(true)
+  })
+})
+
+describe("shortcuts", () => {
+  test("«Надіслати → Робочий стіл» puts a shortcut on the desktop, «Створити ярлик» next to the item", () => {
+    const sent = run(start, { type: "shortcut", ids: [letter], targetId: DESKTOP_ID })
+    expect(findByPath(sent.fs, "лист.txt – ярлик")?.target).toBe(letter)
+    const beside = run(start, { type: "shortcut", ids: [letter], targetId: null })
+    expect(findByPath(beside.fs, "Документи/лист.txt – ярлик")?.target).toBe(letter)
+  })
+
+  test("a shortcut to a drive goes to the desktop", () => {
+    const state = run(start, { type: "shortcut", ids: [driveId("D")], targetId: null })
+    expect(findByPath(state.fs, "Локальний диск (D:) – ярлик")?.target).toBe(driveId("D"))
   })
 })

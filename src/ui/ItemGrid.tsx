@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react"
 import { BIN_ID, childrenOf, displayName, type FsNode, isInBin, type NodeId, THIS_PC_ID } from "../core/fs.ts"
 import { splitExtension } from "../core/names.ts"
-import { iconKindOf, NodeIcon } from "./icons.tsx"
+import { ItemIcon } from "./icons.tsx"
 import type { Action, DesktopState } from "./store.ts"
 
 type Bind = (nodeId: NodeId | null, containerId: NodeId) => {
@@ -26,7 +26,7 @@ const RenameInput = ({ node, dispatch }: { readonly node: FsNode; readonly dispa
     input.focus()
     // Like Windows: select the name without the extension so typing keeps `.jpg`.
     const { base } = splitExtension(node.name)
-    input.setSelectionRange(0, node.kind === "folder" ? node.name.length : base.length)
+    input.setSelectionRange(0, node.kind === "folder" || node.target !== undefined ? node.name.length : base.length)
   }, [node.id, node.kind, node.name])
   return (
     <input
@@ -60,7 +60,7 @@ export const ItemGrid = ({ state, containerId, items, bind, dispatch, variant }:
             title={displayName(node)}
             {...bind(node.id, containerId)}
           >
-            <NodeIcon kind={iconKindOf(node, binHasItems)} size={variant === "desktop" ? 48 : 44} />
+            <ItemIcon fs={state.fs} node={node} binHasItems={binHasItems} size={variant === "desktop" ? 48 : 44} />
             {state.renaming === node.id ? (
               <RenameInput node={node} dispatch={dispatch} />
             ) : (

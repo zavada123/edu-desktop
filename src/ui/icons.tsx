@@ -1,5 +1,5 @@
-import type { FsNode } from "../core/fs.ts"
-import { BIN_ID, isDrive, THIS_PC_ID } from "../core/fs.ts"
+import type { FsNode, FsState } from "../core/fs.ts"
+import { BIN_ID, getNode, isDrive, THIS_PC_ID } from "../core/fs.ts"
 import { extensionOf } from "../core/names.ts"
 
 /** Own simple icons: no Microsoft artwork is used anywhere in the project. */
@@ -105,8 +105,25 @@ const shapes: Record<IconKind, React.ReactNode> = {
   file: <Page color="#8a94a3" />
 }
 
-export const NodeIcon = ({ kind, size }: { readonly kind: IconKind; readonly size: number }) => (
+/** The small white square with a curved arrow in the lower left corner of a shortcut (5 клас, рис. 5.5). */
+const ShortcutArrow = () => (
+  <g>
+    <rect x="2" y="38" width="24" height="24" rx="3" fill="#fff" stroke="#5b6675" strokeWidth="2" />
+    <path d="M9 56c0-9 4-13 12-13" fill="none" stroke="#1f6feb" strokeWidth="3.5" strokeLinecap="round" />
+    <path d="M15 38.5l7 4.5-6 5.5" fill="none" stroke="#1f6feb" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" />
+  </g>
+)
+
+export const NodeIcon = ({ kind, size, shortcut = false }: { readonly kind: IconKind; readonly size: number; readonly shortcut?: boolean }) => (
   <svg viewBox="0 0 64 64" width={size} height={size} aria-hidden="true">
     {shapes[kind]}
+    {shortcut && <ShortcutArrow />}
   </svg>
 )
+
+/** Icon of an item in a folder: a shortcut looks like its object plus the arrow; a broken one like a plain file. */
+export const ItemIcon = ({ fs, node, binHasItems, size }: { readonly fs: FsState; readonly node: FsNode; readonly binHasItems: boolean; readonly size: number }) => {
+  if (node.target === undefined) return <NodeIcon kind={iconKindOf(node, binHasItems)} size={size} />
+  const target = getNode(fs, node.target)
+  return <NodeIcon kind={target ? iconKindOf(target, binHasItems) : "file"} size={size} shortcut />
+}

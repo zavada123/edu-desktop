@@ -18,6 +18,8 @@ export interface FsNode {
   readonly deletedFrom?: NodeId
   /** Taken back out of the recycle bin at least once; a goal can ask for it (5 клас, вправа 6). */
   readonly restored?: true
+  /** A shortcut (ярлик) is a file that points at another object; deleting it leaves that object alone. */
+  readonly target?: NodeId
 }
 
 export interface FsState {
@@ -59,6 +61,8 @@ export const isDrive = (id: NodeId): boolean => DRIVE_LETTERS.some((letter) => d
 export const isSystem = (id: NodeId): boolean => id === DESKTOP_ID || id === BIN_ID || id === THIS_PC_ID || isDrive(id)
 
 /** What the student sees: drive `D:` is shown as «Локальний диск (D:)», as in Windows. */
+export const isShortcut = (node: FsNode): boolean => node.target !== undefined
+
 export const displayName = (node: FsNode): string => (isDrive(node.id) ? `Локальний диск (${node.name})` : node.name)
 
 const byFolderThenName = (a: FsNode, b: FsNode): number =>
@@ -183,7 +187,8 @@ const copyTree = (state: FsState, sourceId: NodeId, parentId: NodeId, name: stri
   const source = getNode(state, sourceId)
   if (!source) return { state, id: sourceId }
   const id = `n${state.nextId}`
-  const withCopy = put({ ...state, nextId: state.nextId + 1 }, { id, name, kind: source.kind, parentId })
+  const target = source.target === undefined ? {} : { target: source.target }
+  const withCopy = put({ ...state, nextId: state.nextId + 1 }, { id, name, kind: source.kind, parentId, ...target })
   const children = childrenOf(state, sourceId)
   const finalState = children.reduce((acc, child) => copyTree(acc, child.id, id, child.name).state, withCopy)
   return { state: finalState, id }
@@ -207,6 +212,28 @@ export const copy = (state: FsState, id: NodeId, targetId: NodeId): FsResult => 
   }
   const result = copyTree(state, id, targetId, name)
   return { ok: true, ...result }
+}
+
+/**
+ * Creates a shortcut to `id` in `parentId`, named `Моя папка – ярлик`. A shortcut to a shortcut
+ * points at the same object, as in Windows.
+ */
+export const createShortcut = (state: FsState, id: NodeId, parentId: NodeId): FsResult => {
+  const node = getNode(state, id)
+  if (!node || id === DESKTOP_ID || isInBin(state, id)) return fail("Для цього об'єкта не можна створити ярлик")
+  const targetError = checkTarget(state, parentId) ?? (parentId === BIN_ID ? "У кошику не можна створювати" : null)
+  if (targetError) return fail(targetError)
+  const name = freeName(isShortcut(node) ? node.name : `${displayName(node)} – ярлик`, (n) => findChild(state, parentId, n) !== undefined)
+  const newId = `n${state.nextId}`
+  const shortcut: FsNode = { id: newId, name, kind: "file", parentId, target: node.target ?? id }
+  return { ok: true, id: newId, state: put({ ...state, nextId: state.nextId + 1 }, shortcut) }
+}
+
+/** What a shortcut opens, or `undefined` when its object was deleted or lies in the bin. */
+export const shortcutTarget = (state: FsState, node: FsNode): FsNode | undefined => {
+  if (node.target === undefined) return undefined
+  const target = getNode(state, node.target)
+  return target && !isInBin(state, target.id) ? target : undefined
 }
 
 /** Puts an item into the recycle bin and remembers where it came from. */

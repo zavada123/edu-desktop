@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest"
-import { BIN_ID, childrenOf, copy, create, DESKTOP_ID, driveId, findByPath, type FsResult, type FsState, move, remove, rename, restore } from "../core/fs.ts"
+import { BIN_ID, childrenOf, copy, create, createShortcut, DESKTOP_ID, driveId, findByPath, type FsResult, type FsState, move, remove, rename, restore } from "../core/fs.ts"
 import { allMet, checkGoals } from "../core/goals.ts"
 import { buildState } from "../core/tree.ts"
 import { scenarios } from "./index.ts"
@@ -81,6 +81,33 @@ describe("5 клас, папка на диску D:", () => {
     s = step(copy(s, at(s, "Вправа 5.docx"), at(s, "D:/Інформатика 5 клас/Вправи")))
     expect(failed("g5-drive-d-folder", s)).toEqual([])
     expect(failed("g5-drive-d-folder", step(create(s, DESKTOP_ID, "folder", "Інформатика 5 клас")))).toHaveLength(1)
+  })
+})
+
+describe("5 клас, ярлики", () => {
+  test("can be solved; deleting the folder instead of the shortcut is caught", () => {
+    const sc = scenario("g5-shortcuts")
+    let s = buildState(sc.start, sc.drives)
+    s = step(createShortcut(s, at(s, "D:/Моя папка"), DESKTOP_ID))
+    s = step(create(s, at(s, "D:/Моя папка"), "folder", "Проєкт"))
+    const solved = step(remove(s, at(s, "Ігри – ярлик")))
+    expect(failed("g5-shortcuts", solved)).toEqual([])
+    const wrong = step(remove(s, at(s, "D:/Ігри")))
+    expect(failed("g5-shortcuts", wrong)).toContain("Папка «Ігри» на диску D: ціла")
+  })
+})
+
+describe("5 клас, практична робота 1", () => {
+  test("can be solved", () => {
+    const sc = scenario("g5-practical-1")
+    let s = buildState(sc.start, sc.drives)
+    s = step(create(s, driveId("D"), "folder", "Петренко"))
+    for (const name of ["Малюнки", "Тексти", "Музика", "Різне"]) s = step(create(s, at(s, "D:/Петренко"), "folder", name))
+    s = step(createShortcut(s, at(s, "D:/Петренко"), DESKTOP_ID))
+    s = step(copy(s, at(s, "D:/Для учнів/осінь.jpg"), at(s, "D:/Петренко/Малюнки")))
+    s = step(copy(s, at(s, "D:/Для учнів/правила.txt"), at(s, "D:/Петренко/Тексти")))
+    s = step(copy(s, at(s, "D:/Для учнів/гімн.mp3"), at(s, "D:/Петренко/Музика")))
+    expect(failed("g5-practical-1", s)).toEqual([])
   })
 })
 

@@ -1,4 +1,4 @@
-import { BIN_ID, childrenOf, findByPath, type FsState, type NodeKind } from "./fs.ts"
+import { BIN_ID, childrenOf, findByPath, type FsState, type NodeKind, shortcutTarget } from "./fs.ts"
 import { extensionOf, plural, sameName } from "./names.ts"
 
 /**
@@ -10,6 +10,8 @@ export type Goal =
   | { readonly type: "absent"; readonly path: string; readonly text?: string; readonly hint?: string }
   | { readonly type: "inBin"; readonly name: string; readonly text?: string; readonly hint?: string }
   /** The item at `path` was deleted into the bin and then restored. */
+  /** In `folder` lies a shortcut (any name) that opens the object at `target`. */
+  | { readonly type: "shortcut"; readonly folder: string; readonly target: string; readonly text?: string; readonly hint?: string }
   | { readonly type: "restored"; readonly path: string; readonly text?: string; readonly hint?: string }
   | {
       readonly type: "count"
@@ -65,6 +67,8 @@ export const describeGoal = (goal: Goal): string => {
     }
     case "inBin":
       return `«${goal.name}» лежить у кошику`
+    case "shortcut":
+      return `${folderLabel(goal.folder)} є ярлик до «${lastPart(goal.target).name}»`.replace(/^./, (c) => c.toUpperCase())
     case "restored":
       return `«${lastPart(goal.path).name}» видалено в кошик і відновлено`
     case "count": {
@@ -91,6 +95,8 @@ const defaultHint = (goal: Goal): string => {
       return "Цей об'єкт ще на місці. Його треба перемістити або видалити."
     case "inBin":
       return "Видали об'єкт: права кнопка миші (або довге натискання) → «Видалити»."
+    case "shortcut":
+      return "Клацни правою кнопкою на об'єкті → «Надіслати» → «Робочий стіл (створити ярлик)» або «Створити ярлик»."
     case "restored":
       return "Видали об'єкт у кошик, потім відкрий «Кошик» і вибери «Відновити»."
     case "count":
@@ -108,6 +114,12 @@ const isMet = (state: FsState, goal: Goal): boolean => {
       return findByPath(state, goal.path) === undefined
     case "inBin":
       return childrenOf(state, BIN_ID).some((n) => sameName(n.name, goal.name))
+    case "shortcut": {
+      const folder = findByPath(state, goal.folder)
+      const target = findByPath(state, goal.target)
+      if (!folder || !target) return false
+      return childrenOf(state, folder.id).some((n) => shortcutTarget(state, n)?.id === target.id)
+    }
     case "restored":
       return findByPath(state, goal.path)?.restored === true
     case "count": {
