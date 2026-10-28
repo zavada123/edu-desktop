@@ -28,18 +28,30 @@ export interface Menu {
   readonly targetId: NodeId | null
 }
 
+/** Question shown before an action that is hard to undo, as Windows asks it. */
+export type Confirm =
+  | { readonly kind: "delete"; readonly ids: ReadonlyArray<NodeId> }
+  | { readonly kind: "deleteForever"; readonly ids: ReadonlyArray<NodeId> }
+  | { readonly kind: "emptyBin" }
+
 export interface DesktopState {
   readonly fs: FsState
   /** Last window is on top. */
   readonly windows: ReadonlyArray<Win>
   readonly nextWinId: number
-  readonly selected: NodeId | null
+  /** Selected items; all of them lie in the same folder. */
+  readonly selected: ReadonlyArray<NodeId>
+  /** «Вибрати кілька»: on a phone every tap adds to the selection, like Ctrl+click. */
+  readonly multi: boolean
   readonly renaming: NodeId | null
   readonly clipboard: Clipboard | null
   readonly menu: Menu | null
+  readonly confirm: Confirm | null
   readonly message: string | null
   readonly results: ReadonlyArray<GoalResult> | null
 }
+
+type Ids = ReadonlyArray<NodeId>
 
 export type Action =
   | { readonly type: "reset"; readonly fs: FsState }
@@ -51,17 +63,20 @@ export type Action =
   | { readonly type: "focus"; readonly winId: number }
   | { readonly type: "moveWin"; readonly winId: number; readonly x: number; readonly y: number }
   | { readonly type: "toggleMax"; readonly winId: number }
-  | { readonly type: "select"; readonly nodeId: NodeId | null }
+  | { readonly type: "select"; readonly nodeId: NodeId | null; readonly additive: boolean }
+  | { readonly type: "toggleMulti" }
   | { readonly type: "startRename"; readonly nodeId: NodeId }
   | { readonly type: "commitRename"; readonly nodeId: NodeId; readonly name: string }
   | { readonly type: "cancelRename" }
   | { readonly type: "create"; readonly containerId: NodeId; readonly kind: fs.NodeKind }
-  | { readonly type: "delete"; readonly nodeId: NodeId }
-  | { readonly type: "restore"; readonly nodeId: NodeId }
-  | { readonly type: "emptyBin" }
-  | { readonly type: "clip"; readonly mode: Clipboard["mode"]; readonly nodeId: NodeId }
+  | { readonly type: "askDelete"; readonly ids: Ids }
+  | { readonly type: "askEmptyBin" }
+  | { readonly type: "confirm" }
+  | { readonly type: "cancelConfirm" }
+  | { readonly type: "restore"; readonly ids: Ids }
+  | { readonly type: "clip"; readonly mode: Clipboard["mode"]; readonly ids: Ids }
   | { readonly type: "paste"; readonly targetId: NodeId }
-  | { readonly type: "drop"; readonly nodeId: NodeId; readonly targetId: NodeId; readonly copy: boolean }
+  | { readonly type: "drop"; readonly ids: Ids; readonly targetId: NodeId; readonly copy: boolean }
   | { readonly type: "menu"; readonly menu: Menu | null }
   | { readonly type: "check"; readonly goals: ReadonlyArray<Goal> }
   | { readonly type: "notify"; readonly message: string }
@@ -71,10 +86,12 @@ export const initialState = (fsState: FsState): DesktopState => ({
   fs: fsState,
   windows: [],
   nextWinId: 1,
-  selected: null,
+  selected: [],
+  multi: false,
   renaming: null,
   clipboard: null,
   menu: null,
+  confirm: null,
   message: null,
   results: null
 })
@@ -82,18 +99,35 @@ export const initialState = (fsState: FsState): DesktopState => ({
 const CASCADE_STEP = 28
 const CASCADE_SIZE = 6
 
-/** Applies a file-system result: on success keeps the new tree, on failure shows the error. */
-const applyFs = (state: DesktopState, result: FsResult, after?: (s: DesktopState, id: NodeId) => DesktopState): DesktopState => {
-  if (!result.ok) return { ...state, message: result.error, menu: null }
-  const next = closeMissing({ ...state, fs: result.state, menu: null, message: null, results: null })
-  return after ? after(next, result.id) : next
-}
-
 /** Windows whose folder or file no longer exists (bin emptied) are closed. */
 const closeMissing = (state: DesktopState): DesktopState => ({
   ...state,
-  windows: state.windows.filter((w) => fs.getNode(state.fs, w.nodeId) !== undefined)
+  windows: state.windows.filter((w) => fs.getNode(state.fs, w.nodeId) !== undefined),
+  selected: state.selected.filter((id) => fs.getNode(state.fs, id) !== undefined)
 })
+
+const withFs = (state: DesktopState, fsState: FsState): DesktopState =>
+  closeMissing({ ...state, fs: fsState, menu: null, message: null, results: null })
+
+/** Applies a file-system result: on success keeps the new tree, on failure shows the error. */
+const applyFs = (state: DesktopState, result: FsResult, after?: (s: DesktopState, id: NodeId) => DesktopState): DesktopState => {
+  if (!result.ok) return { ...state, message: result.error, menu: null }
+  const next = withFs(state, result.state)
+  return after ? after(next, result.id) : next
+}
+
+/** Runs one operation for several items; stops at the first error and keeps nothing, like an atomic action. */
+const applyEach = (state: DesktopState, ids: Ids, op: (s: FsState, id: NodeId) => FsResult): DesktopState => {
+  let current: FsState = state.fs
+  for (const id of ids) {
+    const result = op(current, id)
+    if (!result.ok) return { ...state, message: result.error, menu: null }
+    current = result.state
+  }
+  return withFs(state, current)
+}
+
+const userIds = (ids: Ids): Ids => ids.filter((id) => !fs.isSystem(id))
 
 const updateWin = (state: DesktopState, winId: number, change: (w: Win) => Win): DesktopState => ({
   ...state,
@@ -111,42 +145,58 @@ const openWin = (state: DesktopState, nodeId: NodeId): DesktopState => {
   if (existing) return focusWin({ ...state, menu: null }, existing.id)
   const offset = ((state.nextWinId - 1) % CASCADE_SIZE) * CASCADE_STEP
   const win: Win = { id: state.nextWinId, nodeId, x: 40 + offset, y: 30 + offset, maximized: false, history: [] }
-  return { ...state, windows: [...state.windows, win], nextWinId: state.nextWinId + 1, menu: null, selected: null }
+  return { ...state, windows: [...state.windows, win], nextWinId: state.nextWinId + 1, menu: null, selected: [] }
 }
 
 const navigate = (state: DesktopState, winId: number, nodeId: NodeId, remember: boolean): DesktopState =>
-  updateWin({ ...state, selected: null, menu: null }, winId, (w) =>
+  updateWin({ ...state, selected: [], menu: null }, winId, (w) =>
     w.nodeId === nodeId ? w : { ...w, nodeId, history: remember ? [...w.history, w.nodeId] : w.history }
   )
+
+/** Ctrl+click (or a tap in «Вибрати кілька») adds or removes an item; a plain click selects only it. */
+const select = (state: DesktopState, nodeId: NodeId | null, additive: boolean): DesktopState => {
+  const base = { ...state, menu: null, renaming: state.renaming !== null && state.renaming === nodeId ? state.renaming : null }
+  if (nodeId === null) return additive ? base : { ...base, selected: [] }
+  if (!additive) return { ...base, selected: [nodeId] }
+  const parent = fs.getNode(state.fs, nodeId)?.parentId
+  const sameFolder = state.selected.filter((id) => fs.getNode(state.fs, id)?.parentId === parent)
+  const selected = sameFolder.includes(nodeId) ? sameFolder.filter((id) => id !== nodeId) : [...sameFolder, nodeId]
+  return { ...base, selected }
+}
+
+const askDelete = (state: DesktopState, ids: Ids): DesktopState => {
+  const items = userIds(ids)
+  if (items.length === 0) return { ...state, menu: null }
+  const inBin = items.every((id) => fs.getNode(state.fs, id)?.parentId === BIN_ID)
+  return { ...state, menu: null, renaming: null, confirm: { kind: inBin ? "deleteForever" : "delete", ids: items } }
+}
+
+const runConfirm = (state: DesktopState, confirm: Confirm): DesktopState => {
+  const cleared = { ...state, confirm: null, selected: [] }
+  switch (confirm.kind) {
+    case "delete":
+      return applyEach(cleared, confirm.ids, fs.remove)
+    case "deleteForever":
+      return applyEach(cleared, confirm.ids, fs.deleteForever)
+    case "emptyBin":
+      return withFs(cleared, fs.emptyBin(state.fs))
+  }
+}
 
 const paste = (state: DesktopState, targetId: NodeId): DesktopState => {
   const clip = state.clipboard
   if (!clip) return { ...state, menu: null }
-  const op = clip.mode === "cut" ? fs.move : fs.copy
-  let current: FsState = state.fs
-  for (const id of clip.ids) {
-    const result = op(current, id, targetId)
-    if (!result.ok) return { ...state, message: result.error, menu: null }
-    current = result.state
-  }
-  return closeMissing({
-    ...state,
-    fs: current,
-    clipboard: clip.mode === "cut" ? null : clip,
-    menu: null,
-    message: null,
-    results: null
-  })
+  const next = applyEach(state, clip.ids, (s, id) => (clip.mode === "cut" ? fs.move(s, id, targetId) : fs.copy(s, id, targetId)))
+  if (next.message !== null) return next
+  return { ...next, clipboard: clip.mode === "cut" ? null : clip }
 }
 
 export const reducer = (state: DesktopState, action: Action): DesktopState => {
   switch (action.type) {
     case "reset":
       return initialState(action.fs)
-    case "open": {
-      const node = fs.getNode(state.fs, action.nodeId)
-      return node ? openWin(state, action.nodeId) : state
-    }
+    case "open":
+      return fs.getNode(state.fs, action.nodeId) ? openWin(state, action.nodeId) : state
     case "navigate":
       return navigate(state, action.winId, action.nodeId, true)
     case "back": {
@@ -169,9 +219,11 @@ export const reducer = (state: DesktopState, action: Action): DesktopState => {
     case "toggleMax":
       return updateWin(state, action.winId, (w) => ({ ...w, maximized: !w.maximized }))
     case "select":
-      return { ...state, selected: action.nodeId, menu: null, renaming: state.renaming === action.nodeId ? state.renaming : null }
+      return select(state, action.nodeId, action.additive || state.multi)
+    case "toggleMulti":
+      return { ...state, multi: !state.multi, menu: null }
     case "startRename":
-      return fs.isSystem(action.nodeId) ? state : { ...state, renaming: action.nodeId, selected: action.nodeId, menu: null }
+      return fs.isSystem(action.nodeId) ? state : { ...state, renaming: action.nodeId, selected: [action.nodeId], menu: null }
     case "commitRename": {
       const node = fs.getNode(state.fs, action.nodeId)
       if (!node || node.name === action.name.trim()) return { ...state, renaming: null }
@@ -182,22 +234,29 @@ export const reducer = (state: DesktopState, action: Action): DesktopState => {
       return { ...state, renaming: null }
     case "create": {
       const name = action.kind === "folder" ? "Нова папка" : "Новий текстовий документ.txt"
-      return applyFs(state, fs.create(state.fs, action.containerId, action.kind, name), (s, id) => ({ ...s, selected: id, renaming: id }))
+      return applyFs(state, fs.create(state.fs, action.containerId, action.kind, name), (s, id) => ({ ...s, selected: [id], renaming: id }))
     }
-    case "delete":
-      return applyFs(state, fs.remove(state.fs, action.nodeId), (s) => ({ ...s, selected: null }))
+    case "askDelete":
+      return askDelete(state, action.ids)
+    case "askEmptyBin":
+      return fs.childrenOf(state.fs, BIN_ID).length === 0 ? { ...state, menu: null } : { ...state, menu: null, confirm: { kind: "emptyBin" } }
+    case "confirm":
+      return state.confirm ? runConfirm(state, state.confirm) : state
+    case "cancelConfirm":
+      return { ...state, confirm: null }
     case "restore":
-      return applyFs(state, fs.restore(state.fs, action.nodeId), (s) => ({ ...s, selected: null }))
-    case "emptyBin":
-      return closeMissing({ ...state, fs: fs.emptyBin(state.fs), menu: null, results: null })
-    case "clip":
-      return fs.isSystem(action.nodeId) ? state : { ...state, clipboard: { mode: action.mode, ids: [action.nodeId] }, menu: null }
+      return { ...applyEach(state, action.ids, fs.restore), selected: [] }
+    case "clip": {
+      const ids = userIds(action.ids)
+      return ids.length === 0 ? state : { ...state, clipboard: { mode: action.mode, ids }, menu: null }
+    }
     case "paste":
       return paste(state, action.targetId)
     case "drop": {
-      if (action.nodeId === action.targetId) return state
-      const result = action.copy && action.targetId !== BIN_ID ? fs.copy(state.fs, action.nodeId, action.targetId) : fs.move(state.fs, action.nodeId, action.targetId)
-      return applyFs(state, result)
+      const ids = userIds(action.ids).filter((id) => id !== action.targetId)
+      if (ids.length === 0) return state
+      const useCopy = action.copy && action.targetId !== BIN_ID
+      return applyEach(state, ids, (s, id) => (useCopy ? fs.copy(s, id, action.targetId) : fs.move(s, id, action.targetId)))
     }
     case "menu":
       return { ...state, menu: action.menu, renaming: null }
@@ -211,5 +270,8 @@ export const reducer = (state: DesktopState, action: Action): DesktopState => {
 }
 
 /** Title shown in a window and on the taskbar. */
-export const titleOf = (state: DesktopState, nodeId: NodeId): string =>
-  nodeId === DESKTOP_ID ? "Робочий стіл" : (fs.getNode(state.fs, nodeId)?.name ?? "")
+export const titleOf = (state: DesktopState, nodeId: NodeId): string => {
+  if (nodeId === DESKTOP_ID) return "Робочий стіл"
+  const node = fs.getNode(state.fs, nodeId)
+  return node ? fs.displayName(node) : ""
+}

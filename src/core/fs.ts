@@ -12,7 +12,7 @@ export interface FsNode {
   readonly id: NodeId
   readonly name: string
   readonly kind: NodeKind
-  /** `null` only for the desktop and the recycle bin. */
+  /** `null` only for the desktop, the recycle bin and «Цей ПК». */
   readonly parentId: NodeId | null
   /** For items in the recycle bin: the folder to restore them to. */
   readonly deletedFrom?: NodeId
@@ -25,6 +25,13 @@ export interface FsState {
 
 export const DESKTOP_ID: NodeId = "desktop"
 export const BIN_ID: NodeId = "bin"
+/** «Цей ПК»: holds the drives. Drives are folders named `C:` and `D:`. */
+export const THIS_PC_ID: NodeId = "this-pc"
+export const DRIVE_LETTERS = ["C", "D"] as const
+export type DriveLetter = (typeof DRIVE_LETTERS)[number]
+export const driveId = (letter: DriveLetter): NodeId => `drive-${letter}`
+
+const DRIVE_PATTERN = /^[a-z]:$/i
 
 export type FsResult = { readonly ok: true; readonly state: FsState; readonly id: NodeId } | { readonly ok: false; readonly error: string }
 
@@ -33,14 +40,24 @@ const fail = (error: string): FsResult => ({ ok: false, error })
 export const emptyState = (): FsState => ({
   nodes: {
     [DESKTOP_ID]: { id: DESKTOP_ID, name: "Робочий стіл", kind: "folder", parentId: null },
-    [BIN_ID]: { id: BIN_ID, name: "Кошик", kind: "folder", parentId: null }
+    [BIN_ID]: { id: BIN_ID, name: "Кошик", kind: "folder", parentId: null },
+    [THIS_PC_ID]: { id: THIS_PC_ID, name: "Цей ПК", kind: "folder", parentId: null },
+    ...Object.fromEntries(
+      DRIVE_LETTERS.map((letter) => [driveId(letter), { id: driveId(letter), name: `${letter}:`, kind: "folder", parentId: THIS_PC_ID }])
+    )
   },
   nextId: 1
 })
 
 export const getNode = (state: FsState, id: NodeId): FsNode | undefined => state.nodes[id]
 
-export const isSystem = (id: NodeId): boolean => id === DESKTOP_ID || id === BIN_ID
+export const isDrive = (id: NodeId): boolean => DRIVE_LETTERS.some((letter) => driveId(letter) === id)
+
+/** Desktop, bin, «Цей ПК» and drives cannot be renamed, moved or deleted. */
+export const isSystem = (id: NodeId): boolean => id === DESKTOP_ID || id === BIN_ID || id === THIS_PC_ID || isDrive(id)
+
+/** What the student sees: drive `D:` is shown as «Локальний диск (D:)», as in Windows. */
+export const displayName = (node: FsNode): string => (isDrive(node.id) ? `Локальний диск (${node.name})` : node.name)
 
 const byFolderThenName = (a: FsNode, b: FsNode): number =>
   a.kind === b.kind ? a.name.localeCompare(b.name, "uk") : a.kind === "folder" ? -1 : 1
@@ -63,18 +80,35 @@ export const isInside = (state: FsState, id: NodeId, ancestorId: NodeId): boolea
 
 export const isInBin = (state: FsState, id: NodeId): boolean => id !== BIN_ID && isInside(state, id, BIN_ID)
 
-/** Names from the desktop down: `["Мої фото", "ліс.jpg"]`. Empty for the desktop itself. */
+/** Names from the desktop or a drive down: `["Мої фото", "ліс.jpg"]`, `["D:", "Мої уроки"]`. */
 export const pathOf = (state: FsState, id: NodeId): ReadonlyArray<string> => {
   const node = getNode(state, id)
   if (!node || node.parentId === null) return []
   return [...pathOf(state, node.parentId), node.name]
 }
 
-/** Finds a node by a path relative to the desktop: `Мої фото/ліс.jpg`. Letter case is ignored. */
+/**
+ * Full path in Windows style: `D:\\Мої уроки\\монітор.jpg`. Items on the desktop start with «Робочий стіл».
+ */
+export const windowsPath = (state: FsState, id: NodeId): string => {
+  if (id === THIS_PC_ID) return "Цей ПК"
+  if (isInBin(state, id) || id === BIN_ID) return "Кошик"
+  const parts = pathOf(state, id)
+  const onDrive = parts[0] !== undefined && DRIVE_PATTERN.test(parts[0])
+  if (onDrive) return parts.length === 1 ? `${parts[0]}\\` : parts.join("\\")
+  return ["Робочий стіл", ...parts].join("\\")
+}
+
+/**
+ * Finds a node by a path relative to the desktop (`Мої фото/ліс.jpg`) or to a drive
+ * (`D:/Мої уроки/монітор.jpg`). Both `/` and `\\` separate parts. Letter case is ignored.
+ */
 export const findByPath = (state: FsState, path: string): FsNode | undefined => {
-  const parts = path.split("/").map((p) => p.trim()).filter((p) => p.length > 0)
-  let cur = getNode(state, DESKTOP_ID)
-  for (const part of parts) {
+  const parts = path.split(/[/\\]/).map((p) => p.trim()).filter((p) => p.length > 0)
+  const first = parts[0]
+  const onDrive = first !== undefined && DRIVE_PATTERN.test(first)
+  let cur = onDrive ? findChild(state, THIS_PC_ID, first) : getNode(state, DESKTOP_ID)
+  for (const part of onDrive ? parts.slice(1) : parts) {
     if (!cur || cur.kind !== "folder") return undefined
     cur = findChild(state, cur.id, part)
   }
@@ -91,6 +125,7 @@ const withoutDeletedFrom = (node: FsNode): FsNode => {
 const checkTarget = (state: FsState, targetId: NodeId): string | null => {
   const target = getNode(state, targetId)
   if (!target || target.kind !== "folder") return "Це не папка"
+  if (targetId === THIS_PC_ID) return "У «Цей ПК» лежать лише диски. Відкрий диск і працюй у ньому"
   if (targetId !== BIN_ID && isInBin(state, targetId)) return "Спершу віднови папку з кошика"
   return null
 }
@@ -181,6 +216,13 @@ const dropTree = (state: FsState, id: NodeId): FsState => {
   const afterChildren = childrenOf(state, id).reduce((acc, child) => dropTree(acc, child.id), state)
   const { [id]: _dropped, ...rest } = afterChildren.nodes
   return { ...afterChildren, nodes: rest }
+}
+
+/** Deletes an item from the recycle bin for good. */
+export const deleteForever = (state: FsState, id: NodeId): FsResult => {
+  const node = getNode(state, id)
+  if (!node || node.parentId !== BIN_ID) return fail("Назавжди можна видалити лише те, що лежить у кошику")
+  return { ok: true, id, state: dropTree(state, id) }
 }
 
 export const emptyBin = (state: FsState): FsState => childrenOf(state, BIN_ID).reduce((acc, n) => dropTree(acc, n.id), state)

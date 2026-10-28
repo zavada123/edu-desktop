@@ -6,7 +6,7 @@ import { scenarios } from "./index.ts"
 
 describe("scenarios", () => {
   test.each(scenarios.map((s) => [s.id, s] as const))("%s builds and is not solved at the start", (_id, scenario) => {
-    const state = buildState(scenario.start)
+    const state = buildState(scenario.start, scenario.drives)
     expect(allMet(checkGoals(state, scenario.goals))).toBe(false)
   })
 

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest"
-import { BIN_ID, childrenOf, copy, create, DESKTOP_ID, emptyBin, findByPath, type FsResult, type FsState, move, pathOf, remove, rename, restore } from "./fs.ts"
+import { BIN_ID, childrenOf, copy, create, deleteForever, DESKTOP_ID, driveId, emptyBin, findByPath, type FsResult, type FsState, move, pathOf, remove, rename, restore, THIS_PC_ID, windowsPath } from "./fs.ts"
 import { freeName, validateName } from "./names.ts"
 import { buildState } from "./tree.ts"
 
@@ -122,5 +122,47 @@ describe("recycle bin", () => {
     const photos = childrenOf(deleted, BIN_ID)[0]
     if (!photos) throw new Error("кошик порожній")
     expect(create(deleted, photos.id, "folder", "Х").ok).toBe(false)
+  })
+})
+
+describe("This PC and drives", () => {
+  const withDrives = buildState({ "кіт.png": null }, { "D:": { "Мої уроки": { Інформатика: { "монітор.jpg": null } } } })
+
+  test("finds files on a drive by a Windows path", () => {
+    expect(findByPath(withDrives, "D:/Мої уроки/Інформатика/монітор.jpg")).toBeDefined()
+    expect(findByPath(withDrives, "d:\\мої уроки\\інформатика")).toBeDefined()
+    expect(findByPath(withDrives, "C:/Мої уроки")).toBeUndefined()
+  })
+
+  test("shows the path like the textbook: D:\\Мої уроки\\Інформатика\\монітор.jpg", () => {
+    expect(windowsPath(withDrives, idOf(withDrives, "D:/Мої уроки/Інформатика/монітор.jpg"))).toBe("D:\\Мої уроки\\Інформатика\\монітор.jpg")
+    expect(windowsPath(withDrives, driveId("D"))).toBe("D:\\")
+    expect(windowsPath(withDrives, idOf(withDrives, "кіт.png"))).toBe("Робочий стіл\\кіт.png")
+  })
+
+  test("drives and This PC cannot be renamed, moved or deleted", () => {
+    expect(rename(withDrives, driveId("D"), "E:").ok).toBe(false)
+    expect(remove(withDrives, driveId("C")).ok).toBe(false)
+    expect(move(withDrives, THIS_PC_ID, DESKTOP_ID).ok).toBe(false)
+    expect(create(withDrives, THIS_PC_ID, "folder", "Х").ok).toBe(false)
+  })
+
+  test("copies between a drive and the desktop", () => {
+    const state = ok(copy(withDrives, idOf(withDrives, "D:/Мої уроки/Інформатика/монітор.jpg"), DESKTOP_ID))
+    expect(findByPath(state, "монітор.jpg")).toBeDefined()
+    expect(findByPath(state, "D:/Мої уроки/Інформатика/монітор.jpg")).toBeDefined()
+  })
+
+  test("rejects an unknown drive in a scenario", () => {
+    expect(() => buildState({}, { "E:": {} })).toThrow()
+  })
+})
+
+describe("deleteForever", () => {
+  test("removes an item from the bin only", () => {
+    const fileId = idOf(start, "вірш.txt")
+    expect(deleteForever(start, fileId).ok).toBe(false)
+    const gone = ok(deleteForever(ok(remove(start, fileId)), fileId))
+    expect(gone.nodes[fileId]).toBeUndefined()
   })
 })

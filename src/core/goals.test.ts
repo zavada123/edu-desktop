@@ -61,3 +61,12 @@ describe("describeGoal", () => {
     expect(describeGoal({ type: "absent", path: "x", text: "Свій текст" })).toBe("Свій текст")
   })
 })
+
+describe("goals on drives", () => {
+  test("checks a path on drive D: and names it like the textbook", () => {
+    const state = buildState({}, { "D:": { "Мої уроки": { "задачі.docx": null } } })
+    expect(checkGoals(state, [{ type: "exists", path: "D:/Мої уроки/задачі.docx" }])[0]?.ok).toBe(true)
+    expect(describeGoal({ type: "exists", path: "D:/Мої уроки/задачі.docx", kind: "file" })).toBe("У папці «D:\\Мої уроки» є файл «задачі.docx»")
+    expect(describeGoal({ type: "exists", path: "D:/Мої уроки", kind: "folder" })).toBe("На диску D: є папка «Мої уроки»")
+  })
+})

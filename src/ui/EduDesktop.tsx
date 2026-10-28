@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useReducer, useState } from "react"
-import { BIN_ID, childrenOf, DESKTOP_ID, getNode, isInBin, type NodeId } from "../core/fs.ts"
+import { BIN_ID, childrenOf, DESKTOP_ID, getNode, isInBin, type NodeId, THIS_PC_ID } from "../core/fs.ts"
 import { allMet } from "../core/goals.ts"
 import { buildState } from "../core/tree.ts"
 import type { Scenario } from "../scenarios/types.ts"
+import { ConfirmDialog } from "./ConfirmDialog.tsx"
 import { ContextMenu } from "./ContextMenu.tsx"
 import { Explorer } from "./Explorer.tsx"
 import { iconKindOf, NodeIcon } from "./icons.tsx"
@@ -23,10 +24,10 @@ interface Props {
 
 /** The whole trainer for one scenario. Can be embedded into any React page. */
 export const EduDesktop = ({ scenario, onCheck }: Props) => {
-  const [state, dispatch] = useReducer(reducer, scenario, (s) => initialState(buildState(s.start)))
+  const [state, dispatch] = useReducer(reducer, scenario, (s) => initialState(buildState(s.start, s.drives)))
   const [taskOpen, setTaskOpen] = useState(true)
 
-  const reset = useCallback(() => dispatch({ type: "reset", fs: buildState(scenario.start) }), [scenario])
+  const reset = useCallback(() => dispatch({ type: "reset", fs: buildState(scenario.start, scenario.drives) }), [scenario])
   useEffect(reset, [reset])
 
   useEffect(() => {
@@ -55,21 +56,25 @@ export const EduDesktop = ({ scenario, onCheck }: Props) => {
   )
 
   const { bind, drag } = usePointer({
-    onSelect: (nodeId) => dispatch({ type: "select", nodeId }),
+    onSelect: (nodeId, additive) => dispatch({ type: "select", nodeId, additive }),
     onOpen: (nodeId) => {
       const parentId = getNode(state.fs, nodeId)?.parentId
       open(nodeId, state.windows.find((w) => w.nodeId === parentId)?.id)
     },
     onMenu: (x, y, containerId, targetId) => {
-      if (targetId !== null) dispatch({ type: "select", nodeId: targetId })
+      // Right-click on a selected item keeps the whole selection, as in Windows.
+      if (targetId !== null && !state.selected.includes(targetId)) dispatch({ type: "select", nodeId: targetId, additive: false })
       dispatch({ type: "menu", menu: { x, y, containerId, targetId } })
     },
-    onDrop: (nodeId, targetId, copy) => dispatch({ type: "drop", nodeId, targetId, copy })
+    onDrop: (nodeId, targetId, copy) =>
+      dispatch({ type: "drop", ids: state.selected.includes(nodeId) ? state.selected : [nodeId], targetId, copy })
   })
 
   const binHasItems = childrenOf(state.fs, BIN_ID).length > 0
-  const desktopItems = [...childrenOf(state.fs, DESKTOP_ID), ...[getNode(state.fs, BIN_ID)].filter((n) => n !== undefined)]
+  const systemIcons = [getNode(state.fs, THIS_PC_ID), getNode(state.fs, BIN_ID)].filter((n) => n !== undefined)
+  const desktopItems = [...systemIcons, ...childrenOf(state.fs, DESKTOP_ID)]
   const dragged = drag ? getNode(state.fs, drag.nodeId) : undefined
+  const dragCount = drag && state.selected.includes(drag.nodeId) ? state.selected.length : 1
 
   return (
     <div className={`ed-root ${scenario.large ? "ed-large" : ""}`}>
@@ -111,12 +116,22 @@ export const EduDesktop = ({ scenario, onCheck }: Props) => {
         <button type="button" className="ed-start" onClick={() => setTaskOpen((v) => !v)} aria-label="Завдання">
           📋
         </button>
+        <button
+          type="button"
+          className={`ed-multi ${state.multi ? "is-on" : ""}`}
+          aria-pressed={state.multi}
+          onClick={() => dispatch({ type: "toggleMulti" })}
+          title="Кожне натискання додає об'єкт до виділених, як клацання з Ctrl"
+        >
+          ☑ Вибрати кілька
+        </button>
         {state.windows.map((win) => (
           <button key={win.id} type="button" className="ed-task-btn" onClick={() => dispatch({ type: "focus", winId: win.id })}>
             {titleOf(state, win.nodeId)}
           </button>
         ))}
       </footer>
+      {state.confirm && <ConfirmDialog state={state} confirm={state.confirm} dispatch={dispatch} />}
       {state.menu && <ContextMenu state={state} menu={state.menu} dispatch={dispatch} onOpen={(id) => open(id)} />}
       {state.message && (
         <div className="ed-toast" role="alert" onClick={() => dispatch({ type: "dismiss" })}>
@@ -126,7 +141,10 @@ export const EduDesktop = ({ scenario, onCheck }: Props) => {
       {drag && dragged && (
         <div className="ed-ghost" style={{ left: drag.x, top: drag.y }}>
           <NodeIcon kind={iconKindOf(dragged, binHasItems)} size={40} />
-          <span>{drag.copy ? "＋ " : ""}{dragged.name}</span>
+          <span>
+            {drag.copy ? "＋ " : ""}
+            {dragCount > 1 ? `${dragCount} об'єкти` : dragged.name}
+          </span>
         </div>
       )}
     </div>

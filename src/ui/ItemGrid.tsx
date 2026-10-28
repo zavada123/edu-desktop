@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react"
-import { BIN_ID, childrenOf, type FsNode, isInBin, type NodeId } from "../core/fs.ts"
+import { BIN_ID, childrenOf, displayName, type FsNode, isInBin, type NodeId, THIS_PC_ID } from "../core/fs.ts"
 import { splitExtension } from "../core/names.ts"
 import { iconKindOf, NodeIcon } from "./icons.tsx"
 import type { Action, DesktopState } from "./store.ts"
@@ -50,21 +50,21 @@ export const ItemGrid = ({ state, containerId, items, bind, dispatch, variant }:
   return (
     <div className={`ed-grid ed-grid--${variant}`} data-drop-id={containerId} {...bind(null, containerId)}>
       {items.map((node) => {
-        const isFolderTarget = node.kind === "folder" && (node.id === BIN_ID || !isInBin(state.fs, node.id))
-        const classes = ["ed-item", state.selected === node.id ? "is-selected" : "", cutIds.includes(node.id) ? "is-cut" : ""]
+        const isFolderTarget = node.kind === "folder" && node.id !== THIS_PC_ID && (node.id === BIN_ID || !isInBin(state.fs, node.id))
+        const classes = ["ed-item", state.selected.includes(node.id) ? "is-selected" : "", cutIds.includes(node.id) ? "is-cut" : ""]
         return (
           <div
             key={node.id}
             className={classes.join(" ")}
             data-drop-id={isFolderTarget ? node.id : undefined}
-            title={node.name}
+            title={displayName(node)}
             {...bind(node.id, containerId)}
           >
             <NodeIcon kind={iconKindOf(node, binHasItems)} size={variant === "desktop" ? 48 : 44} />
             {state.renaming === node.id ? (
               <RenameInput node={node} dispatch={dispatch} />
             ) : (
-              <span className="ed-label">{node.name}</span>
+              <span className="ed-label">{displayName(node)}</span>
             )}
           </div>
         )

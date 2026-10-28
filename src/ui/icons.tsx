@@ -1,10 +1,10 @@
 import type { FsNode } from "../core/fs.ts"
-import { BIN_ID } from "../core/fs.ts"
+import { BIN_ID, isDrive, THIS_PC_ID } from "../core/fs.ts"
 import { extensionOf } from "../core/names.ts"
 
 /** Own simple icons: no Microsoft artwork is used anywhere in the project. */
 
-type IconKind = "folder" | "bin" | "binFull" | "image" | "text" | "doc" | "audio" | "video" | "file"
+type IconKind = "folder" | "bin" | "binFull" | "pc" | "drive" | "image" | "text" | "doc" | "audio" | "video" | "file"
 
 const IMAGE = ["jpg", "jpeg", "png", "gif", "bmp", "webp"]
 const TEXT = ["txt"]
@@ -14,6 +14,8 @@ const VIDEO = ["mp4", "avi", "mkv", "webm"]
 
 export const iconKindOf = (node: FsNode, binHasItems: boolean): IconKind => {
   if (node.id === BIN_ID) return binHasItems ? "binFull" : "bin"
+  if (node.id === THIS_PC_ID) return "pc"
+  if (isDrive(node.id)) return "drive"
   if (node.kind === "folder") return "folder"
   const ext = extensionOf(node.name)
   if (IMAGE.includes(ext)) return "image"
@@ -52,6 +54,22 @@ const shapes: Record<IconKind, React.ReactNode> = {
       <path d="M14 18h36l-4 38a3 3 0 0 1-3 3H21a3 3 0 0 1-3-3z" fill="#dfe6ef" stroke="#7b8796" strokeWidth="2" />
       <path d="M16 18c4-8 10-12 16-8 6-6 12-2 16 8z" fill="#fff" stroke="#9aa4b2" strokeWidth="2" />
       <rect x="10" y="16" width="44" height="5" rx="2" fill="#b8c3d1" />
+    </>
+  ),
+  pc: (
+    <>
+      <rect x="6" y="10" width="52" height="34" rx="3" fill="#3b4a5e" />
+      <rect x="10" y="14" width="44" height="26" rx="1" fill="#7cc4ff" />
+      <path d="M26 44h12l2 8H24z" fill="#8a94a3" />
+      <rect x="18" y="52" width="28" height="4" rx="2" fill="#5b6577" />
+    </>
+  ),
+  drive: (
+    <>
+      <rect x="6" y="22" width="52" height="22" rx="4" fill="#cfd6e0" stroke="#7b8796" strokeWidth="2" />
+      <rect x="6" y="36" width="52" height="8" rx="2" fill="#aab4c2" />
+      <circle cx="48" cy="40" r="2.5" fill="#22c55e" />
+      <rect x="12" y="27" width="20" height="4" rx="2" fill="#7b8796" />
     </>
   ),
   image: (

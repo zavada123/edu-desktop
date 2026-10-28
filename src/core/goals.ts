@@ -29,10 +29,22 @@ export interface GoalResult {
   readonly hint: string
 }
 
-const folderLabel = (path: string): string => (path.trim() === "" ? "на робочому столі" : `у папці «${path}»`)
+const splitPath = (path: string): ReadonlyArray<string> =>
+  path
+    .split(/[/\\]/)
+    .map((p) => p.trim())
+    .filter((p) => p.length > 0)
+
+/** `""` → на робочому столі, `D:` → на диску D:, `D:/Мої уроки` → у папці «D:\\Мої уроки». */
+const folderLabel = (path: string): string => {
+  const parts = splitPath(path)
+  if (parts.length === 0) return "на робочому столі"
+  if (parts.length === 1 && /^[a-z]:$/i.test(parts[0] ?? "")) return `на диску ${parts[0]}`
+  return `у папці «${parts.join("\\")}»`
+}
 
 const lastPart = (path: string): { readonly where: string; readonly name: string } => {
-  const parts = path.split("/").map((p) => p.trim()).filter((p) => p.length > 0)
+  const parts = splitPath(path)
   return { where: parts.slice(0, -1).join("/"), name: parts.at(-1) ?? "" }
 }
 
