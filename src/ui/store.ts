@@ -1,7 +1,8 @@
 import * as fs from "../core/fs.ts"
-import { BIN_ID, DESKTOP_ID, type FsResult, type FsState, type NodeId } from "../core/fs.ts"
+import { BIN_ID, DESKTOP_ID, type FsState, type NodeId } from "../core/fs.ts"
 import { checkGoals, type Goal, type GoalResult } from "../core/goals.ts"
 import { splitExtension } from "../core/names.ts"
+import { applyOp, type Op } from "../core/ops.ts"
 
 /** UI state of one desktop session. Pure reducer: every action returns a new object. */
 
@@ -58,6 +59,8 @@ export interface DesktopState {
   readonly fileDialog: FileDialog | null
   /** File the program saved its work to or opened; shown in its title. */
   readonly savedAs: NodeId | null
+  /** Every file-system change since the start, in order; `replay` builds the same tree from it. */
+  readonly ops: ReadonlyArray<Op>
 }
 
 export type FileDialog = "save" | "open"
@@ -129,7 +132,8 @@ const blankState = (fsState: FsState): DesktopState => ({
   message: null,
   results: null,
   fileDialog: null,
-  savedAs: null
+  savedAs: null,
+  ops: []
 })
 
 const CASCADE_STEP = 28
@@ -145,22 +149,23 @@ const closeMissing = (state: DesktopState): DesktopState => ({
 const withFs = (state: DesktopState, fsState: FsState): DesktopState =>
   closeMissing({ ...state, fs: fsState, menu: null, message: null, results: null })
 
-/** Applies a file-system result: on success keeps the new tree, on failure shows the error. */
-const applyFs = (state: DesktopState, result: FsResult, after?: (s: DesktopState, id: NodeId) => DesktopState): DesktopState => {
+/** Makes one file-system change: on success keeps the new tree and records the change, on failure shows the error. */
+const run = (state: DesktopState, op: Op, after?: (s: DesktopState, id: NodeId) => DesktopState): DesktopState => {
+  const result = applyOp(state.fs, op)
   if (!result.ok) return { ...state, message: result.error, menu: null }
-  const next = withFs(state, result.state)
+  const next = withFs({ ...state, ops: [...state.ops, op] }, result.state)
   return after ? after(next, result.id) : next
 }
 
-/** Runs one operation for several items; stops at the first error and keeps nothing, like an atomic action. */
-const applyEach = (state: DesktopState, ids: Ids, op: (s: FsState, id: NodeId) => FsResult): DesktopState => {
+/** Makes several changes; stops at the first error and keeps nothing, like an atomic action. */
+const runEach = (state: DesktopState, ops: ReadonlyArray<Op>): DesktopState => {
   let current: FsState = state.fs
-  for (const id of ids) {
-    const result = op(current, id)
+  for (const op of ops) {
+    const result = applyOp(current, op)
     if (!result.ok) return { ...state, message: result.error, menu: null }
     current = result.state
   }
-  return withFs(state, current)
+  return withFs({ ...state, ops: [...state.ops, ...ops] }, current)
 }
 
 const userIds = (ids: Ids): Ids => ids.filter((id) => !fs.isSystem(id))
@@ -221,7 +226,7 @@ const compress = (state: DesktopState, ids: Ids): DesktopState => {
   const first = items[0] === undefined ? undefined : fs.getNode(state.fs, items[0])
   if (!first) return { ...state, menu: null }
   const name = first.kind === "folder" ? first.name : splitExtension(first.name).base
-  return applyFs(state, fs.compress(state.fs, items, name), (s, id) => ({ ...s, selected: [id], renaming: id }))
+  return run(state, { op: "compress", ids: items, name }, (s, id) => ({ ...s, selected: [id], renaming: id }))
 }
 
 const askDelete = (state: DesktopState, ids: Ids): DesktopState => {
@@ -235,18 +240,18 @@ const runConfirm = (state: DesktopState, confirm: Confirm): DesktopState => {
   const cleared = { ...state, confirm: null, selected: [] }
   switch (confirm.kind) {
     case "delete":
-      return applyEach(cleared, confirm.ids, fs.remove)
+      return runEach(cleared, confirm.ids.map((id) => ({ op: "remove", id })))
     case "deleteForever":
-      return applyEach(cleared, confirm.ids, fs.deleteForever)
+      return runEach(cleared, confirm.ids.map((id) => ({ op: "deleteForever", id })))
     case "emptyBin":
-      return withFs(cleared, fs.emptyBin(state.fs))
+      return run(cleared, { op: "emptyBin" })
   }
 }
 
 const paste = (state: DesktopState, targetId: NodeId): DesktopState => {
   const clip = state.clipboard
   if (!clip) return { ...state, menu: null }
-  const next = applyEach(state, clip.ids, (s, id) => (clip.mode === "cut" ? fs.move(s, id, targetId) : fs.copy(s, id, targetId)))
+  const next = runEach(state, clip.ids.map((id) => ({ op: clip.mode === "cut" ? "move" : "copy", id, targetId })))
   if (next.message !== null) return next
   return { ...next, clipboard: clip.mode === "cut" ? null : clip }
 }
@@ -260,11 +265,11 @@ export const reducer = (state: DesktopState, action: Action): DesktopState => {
     case "fileDialog":
       return { ...state, fileDialog: action.dialog, menu: null }
     case "saveFile":
-      return applyFs(state, fs.saveFile(state.fs, action.folderId, action.name, action.ext), (s, id) => ({ ...s, fileDialog: null, savedAs: id }))
+      return run(state, { op: "saveFile", folderId: action.folderId, name: action.name, ext: action.ext }, (s, id) => ({ ...s, fileDialog: null, savedAs: id }))
     case "openFile":
-      return applyFs(state, fs.markOpened(state.fs, action.nodeId), (s, id) => ({ ...s, fileDialog: null, savedAs: id }))
+      return run(state, { op: "openFile", id: action.nodeId }, (s, id) => ({ ...s, fileDialog: null, savedAs: id }))
     case "newFolder":
-      return applyFs(state, fs.create(state.fs, action.containerId, "folder", action.name))
+      return run(state, { op: "create", parentId: action.containerId, kind: "folder", name: action.name })
     case "open":
       return fs.getNode(state.fs, action.nodeId) ? openWin(state, action.nodeId) : state
     case "navigate":
@@ -295,18 +300,21 @@ export const reducer = (state: DesktopState, action: Action): DesktopState => {
         ? updateWin(state, action.winId, (w) => ({ ...w, minimized: true }))
         : focusWin(state, action.winId)
     case "shortcut":
-      return applyEach(state, action.ids, (s, id) => {
-        const parent = fs.getNode(s, id)?.parentId ?? DESKTOP_ID
-        // In «Цей ПК» only drives live, so Windows offers the desktop instead.
-        const home = action.targetId ?? (parent === fs.THIS_PC_ID ? DESKTOP_ID : parent)
-        return fs.createShortcut(s, id, home)
-      })
+      return runEach(
+        state,
+        action.ids.map((id) => {
+          const parent = fs.getNode(state.fs, id)?.parentId ?? DESKTOP_ID
+          // In «Цей ПК» only drives live, so Windows offers the desktop instead.
+          const home = action.targetId ?? (parent === fs.THIS_PC_ID ? DESKTOP_ID : parent)
+          return { op: "shortcut", id, parentId: home }
+        })
+      )
     case "select":
       return action.range && action.nodeId !== null ? selectRange(state, action.nodeId) : select(state, action.nodeId, action.additive || state.multi)
     case "compress":
       return compress(state, action.ids)
     case "extract":
-      return applyFs(state, fs.extractAll(state.fs, action.nodeId), (s, id) => ({ ...s, selected: [id] }))
+      return run(state, { op: "extract", id: action.nodeId }, (s, id) => ({ ...s, selected: [id] }))
     case "selectAll":
       return { ...state, menu: null, renaming: null, selected: userIds(fs.childrenOf(state.fs, action.containerId).map((n) => n.id)) }
     case "toggleMulti":
@@ -316,14 +324,15 @@ export const reducer = (state: DesktopState, action: Action): DesktopState => {
     case "commitRename": {
       const node = fs.getNode(state.fs, action.nodeId)
       if (!node || node.name === action.name.trim()) return { ...state, renaming: null }
-      const result = fs.rename(state.fs, action.nodeId, action.name)
-      return result.ok ? applyFs({ ...state, renaming: null }, result) : { ...state, message: result.error }
+      const op: Op = { op: "rename", id: action.nodeId, name: action.name }
+      // On an error the name field stays open, so the student can fix the name.
+      return applyOp(state.fs, op).ok ? run({ ...state, renaming: null }, op) : run(state, op)
     }
     case "cancelRename":
       return { ...state, renaming: null }
     case "create": {
       const name = action.kind === "folder" ? "Нова папка" : "Новий текстовий документ.txt"
-      return applyFs(state, fs.create(state.fs, action.containerId, action.kind, name), (s, id) => ({ ...s, selected: [id], renaming: id }))
+      return run(state, { op: "create", parentId: action.containerId, kind: action.kind, name }, (s, id) => ({ ...s, selected: [id], renaming: id }))
     }
     case "askDelete":
       return askDelete(state, action.ids)
@@ -334,7 +343,7 @@ export const reducer = (state: DesktopState, action: Action): DesktopState => {
     case "cancelConfirm":
       return { ...state, confirm: null }
     case "restore":
-      return { ...applyEach(state, action.ids, fs.restore), selected: [] }
+      return { ...runEach(state, action.ids.map((id) => ({ op: "restore", id }))), selected: [] }
     case "clip": {
       const ids = userIds(action.ids)
       return ids.length === 0 ? state : { ...state, clipboard: { mode: action.mode, ids }, menu: null }
@@ -345,7 +354,7 @@ export const reducer = (state: DesktopState, action: Action): DesktopState => {
       const ids = userIds(action.ids).filter((id) => id !== action.targetId)
       if (ids.length === 0) return state
       const useCopy = action.copy && action.targetId !== BIN_ID
-      return applyEach(state, ids, (s, id) => (useCopy ? fs.copy(s, id, action.targetId) : fs.move(s, id, action.targetId)))
+      return runEach(state, ids.map((id) => ({ op: useCopy ? "copy" : "move", id, targetId: action.targetId })))
     }
     case "menu":
       return { ...state, menu: action.menu, renaming: null }

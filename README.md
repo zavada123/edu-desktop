@@ -63,13 +63,48 @@ const animals: Scenario = {
 
 ## Як вбудувати
 
-```tsx
-import { EduDesktop } from "./src/ui/EduDesktop.tsx"
+Пакет має дві частини. `edu-desktop/core` — ядро без React: файлова система, умови, журнал дій і всі сценарії. `edu-desktop/react` — сам тренажер.
 
-<EduDesktop scenario={animals} onCheck={(solved) => console.log(solved)} />
+```bash
+npm install github:zavada123/edu-desktop#v0.2.0
 ```
 
-Ядро (`src/core`) не залежить від React: віртуальна файлова система з незмінними станами й перевірка умов. Його можна використовувати й на сервері, щоб перевіряти надісланий учнем стан.
+```tsx
+import { EduDesktop } from "edu-desktop/react"
+import "edu-desktop/style.css"
+
+// Самоперевірка: учень натискає «Перевірити» в самому тренажері.
+<EduDesktop key={scenario.id} scenario={scenario} onCheck={(solved) => console.log(solved)} />
+
+// Перевірка на сервері: сторінка зберігає журнал дій і надсилає його як відповідь.
+<EduDesktop key={scenario.id} scenario={scenario} selfCheck={false} initialOps={savedOps} onChange={setOps} />
+```
+
+| Властивість | Що робить |
+|---|---|
+| `scenario` | Завдання. Щоб показати інше, змініть `key` |
+| `onCheck(solved)` | Викликається після кожного натискання «Перевірити» |
+| `onChange(ops)` | Журнал усіх змін файлової системи після кожної зміни |
+| `initialOps` | Журнал, збережений раніше: учень продовжує з того місця |
+| `selfCheck` | `false` ховає кнопку «Перевірити», коли перевіряє сайт |
+
+### Перевірка на сервері
+
+Тренажер записує кожну вдалу зміну (`Op`): створити, перейменувати, перемістити, скопіювати, видалити, відновити, створити ярлик, стиснути, видобути, зберегти, відкрити. Номери об'єктів стабільні, тому той самий журнал на тому самому сценарії завжди дає те саме дерево. Сервер не довіряє браузеру: він сам будує початкове дерево, повторює журнал і перевіряє умови.
+
+```ts
+import { grade } from "edu-desktop/core"
+
+const result = grade(scenario, ops)
+if (!result.ok) {
+  // Журнал підроблено або пошкоджено: дія з номером result.index неможлива.
+} else {
+  result.solved   // усі умови виконано
+  result.results  // кожна умова: ok, текст і підказка
+}
+```
+
+Журнал обмежено: не більше 1000 дій, 1000 об'єктів одночасно і 5000 створених за весь час. Справжнє завдання займає 10–60 дій.
 
 ## Розробка
 
@@ -78,6 +113,7 @@ npm install
 npm run dev     # демо на http://localhost:5173
 npm test        # тести ядра
 npm run build   # збірка демо в dist/
+npm run build:lib  # збірка пакета в lib/
 ```
 
 ## Ліцензія та графіка

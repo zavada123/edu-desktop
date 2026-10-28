@@ -9,10 +9,11 @@ interface Props {
   readonly onToggle: () => void
   readonly onReset: () => void
   readonly dispatch: (action: Action) => void
+  readonly selfCheck: boolean
 }
 
 /** The task card: what to do, the "Перевірити" button and the result of each condition. */
-export const TaskPanel = ({ scenario, state, open, onToggle, onReset, dispatch }: Props) => {
+export const TaskPanel = ({ scenario, state, open, onToggle, onReset, dispatch, selfCheck }: Props) => {
   const results = state.results
   const solved = results !== null && allMet(results)
   return (
@@ -30,9 +31,11 @@ export const TaskPanel = ({ scenario, state, open, onToggle, onReset, dispatch }
         ))}
       </ol>
       <div className="ed-task-actions">
-        <button type="button" className="ed-check" onClick={() => dispatch({ type: "check", goals: scenario.goals })}>
-          Перевірити
-        </button>
+        {selfCheck && (
+          <button type="button" className="ed-check" onClick={() => dispatch({ type: "check", goals: scenario.goals })}>
+            Перевірити
+          </button>
+        )}
         <button type="button" className="ed-reset" onClick={onReset}>
           Почати спочатку
         </button>

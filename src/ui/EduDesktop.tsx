@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useReducer, useRef, useState } from "react"
 import { BIN_ID, childrenOf, DESKTOP_ID, getNode, isInBin, type NodeId, shortcutTarget, THIS_PC_ID } from "../core/fs.ts"
 import { allMet } from "../core/goals.ts"
+import { type Op, replay } from "../core/ops.ts"
 import { buildState } from "../core/tree.ts"
 import type { AppKind, Scenario } from "../scenarios/types.ts"
 import { ConfirmDialog } from "./ConfirmDialog.tsx"
@@ -26,18 +27,43 @@ const isTextField = (target: EventTarget | null): boolean =>
   target instanceof HTMLElement && (target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName))
 
 interface Props {
+  /** To show another scenario, give the component a new `key`, for example the scenario id. */
   readonly scenario: Scenario
   /** Called after every check; `solved` is true when all conditions are met. */
   readonly onCheck?: (solved: boolean) => void
+  /**
+   * Called with the log of all file-system changes each time it changes. A page that checks answers
+   * on its server sends this log and grades it there with `grade` from the core.
+   */
+  readonly onChange?: (ops: ReadonlyArray<Op>) => void
+  /** A log saved earlier: the trainer starts with these changes made. An invalid log is ignored. */
+  readonly initialOps?: ReadonlyArray<Op>
+  /** `false` hides «Перевірити» when the page checks the answer itself. */
+  readonly selfCheck?: boolean
+}
+
+const startState = (scenario: Scenario, ops: ReadonlyArray<Op>) => {
+  const begin = buildState(scenario.start, scenario.drives)
+  const replayed = replay(begin, ops)
+  const state = initialState(replayed.ok ? replayed.state : begin, scenario.app !== undefined)
+  return replayed.ok ? { ...state, ops } : state
 }
 
 /** The whole trainer for one scenario. Can be embedded into any React page. */
-export const EduDesktop = ({ scenario, onCheck }: Props) => {
-  const [state, dispatch] = useReducer(reducer, scenario, (s) => initialState(buildState(s.start, s.drives), s.app !== undefined))
+export const EduDesktop = ({ scenario, onCheck, onChange, initialOps = [], selfCheck = true }: Props) => {
+  const [state, dispatch] = useReducer(reducer, null, () => startState(scenario, initialOps))
   const [taskOpen, setTaskOpen] = useState(true)
 
   const reset = useCallback(() => dispatch({ type: "reset", fs: buildState(scenario.start, scenario.drives), withApp: scenario.app !== undefined }), [scenario])
-  useEffect(reset, [reset])
+
+  // A ref, so a new callback on every render of the page does not report the same log again.
+  const changed = useRef(onChange)
+  useEffect(() => {
+    changed.current = onChange
+  })
+  useEffect(() => {
+    changed.current?.(state.ops)
+  }, [state.ops])
 
   useEffect(() => {
     if (state.message === null) return
@@ -183,7 +209,7 @@ export const EduDesktop = ({ scenario, onCheck }: Props) => {
             📋 Завдання
           </button>
         )}
-        <TaskPanel scenario={scenario} state={state} open={taskOpen} onToggle={() => setTaskOpen(false)} onReset={reset} dispatch={dispatch} />
+        <TaskPanel scenario={scenario} state={state} open={taskOpen} onToggle={() => setTaskOpen(false)} onReset={reset} dispatch={dispatch} selfCheck={selfCheck} />
       </div>
       <footer className="ed-taskbar">
         <button type="button" className="ed-start" onClick={() => setTaskOpen((v) => !v)} aria-label="Завдання">
