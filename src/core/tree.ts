@@ -1,4 +1,20 @@
-import { create, createShortcut, markZip, DESKTOP_ID, DRIVE_LETTERS, driveId, emptyState, findByPath, type FsState, type NodeId, rename } from "./fs.ts"
+import {
+  childrenOf,
+  create,
+  createShortcut,
+  DESKTOP_ID,
+  DRIVE_LETTERS,
+  driveId,
+  emptyState,
+  findByPath,
+  type FsNode,
+  type FsState,
+  type NodeId,
+  markZip,
+  pathOf,
+  rename,
+  shortcutTarget
+} from "./fs.ts"
 
 /**
  * Compact description of a starting desktop for scenario authors.
@@ -62,3 +78,33 @@ export const buildState = (desktop: TreeSpec, drives: DrivesSpec = {}): FsState 
   if (!built.ok) throw new Error(built.error)
   return built.state
 }
+
+/** The start tree in the compact form: the desktop and the drives. */
+export interface StartSpec {
+  readonly desktop: TreeSpec
+  readonly drives: DrivesSpec
+}
+
+/** One item in the compact form, or `undefined` for a shortcut whose object is gone or in the bin. */
+const specOf = (state: FsState, node: FsNode): TreeSpec | null | string | undefined => {
+  if (node.target !== undefined) {
+    const target = shortcutTarget(state, node)
+    return target === undefined ? undefined : pathOf(state, target.id).join("/")
+  }
+  return node.kind === "file" ? null : folderSpec(state, node.id)
+}
+
+const folderSpec = (state: FsState, folderId: NodeId): TreeSpec =>
+  Object.fromEntries(childrenOf(state, folderId).flatMap((child) => {
+    const spec = specOf(state, child)
+    return spec === undefined ? [] : [[child.name, spec]]
+  }))
+
+/**
+ * The desktop and the drives of `state` in the form `buildState` reads: an author arranges the start in the
+ * trainer, and a task keeps it as data. The recycle bin and the marks «opened» and «restored» are not kept.
+ */
+export const toTreeSpec = (state: FsState): StartSpec => ({
+  desktop: folderSpec(state, DESKTOP_ID),
+  drives: Object.fromEntries(DRIVE_LETTERS.map((letter) => [`${letter}:`, folderSpec(state, driveId(letter))]))
+})

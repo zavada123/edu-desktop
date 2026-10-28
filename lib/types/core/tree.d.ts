@@ -23,3 +23,13 @@ export type DrivesSpec = {
 export declare const tryBuildState: (desktop: TreeSpec, drives?: DrivesSpec) => BuildResult;
 /** Builds the start tree of a scenario from this package; a mistake in it is a programming error. */
 export declare const buildState: (desktop: TreeSpec, drives?: DrivesSpec) => FsState;
+/** The start tree in the compact form: the desktop and the drives. */
+export interface StartSpec {
+    readonly desktop: TreeSpec;
+    readonly drives: DrivesSpec;
+}
+/**
+ * The desktop and the drives of `state` in the form `buildState` reads: an author arranges the start in the
+ * trainer, and a task keeps it as data. The recycle bin and the marks «opened» and «restored» are not kept.
+ */
+export declare const toTreeSpec: (state: FsState) => StartSpec;
