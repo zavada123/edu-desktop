@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useReducer, useState } from "react"
+import { useCallback, useEffect, useReducer, useRef, useState } from "react"
 import { BIN_ID, childrenOf, DESKTOP_ID, getNode, isInBin, type NodeId, THIS_PC_ID } from "../core/fs.ts"
 import { allMet } from "../core/goals.ts"
 import { buildState } from "../core/tree.ts"
@@ -8,6 +8,7 @@ import { ContextMenu } from "./ContextMenu.tsx"
 import { Explorer } from "./Explorer.tsx"
 import { iconKindOf, NodeIcon } from "./icons.tsx"
 import { ItemGrid } from "./ItemGrid.tsx"
+import { commandForKey } from "./keys.ts"
 import { usePointer } from "./pointer.ts"
 import { initialState, reducer, titleOf } from "./store.ts"
 import { TaskPanel } from "./TaskPanel.tsx"
@@ -15,6 +16,10 @@ import { Window } from "./Window.tsx"
 import "./desktop.css"
 
 const MESSAGE_MS = 4_000
+
+/** Typing in a name or address field keeps its own keys. */
+const isTextField = (target: EventTarget | null): boolean =>
+  target instanceof HTMLElement && (target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName))
 
 interface Props {
   readonly scenario: Scenario
@@ -55,6 +60,41 @@ export const EduDesktop = ({ scenario, onCheck }: Props) => {
     [state.fs]
   )
 
+  /**
+   * Where the student last clicked: a window id, the desktop, or `null` until they click inside the trainer,
+   * so keys elsewhere on the page stay theirs.
+   */
+  const focus = useRef<number | "desktop" | null>(null)
+  const rootRef = useRef<HTMLDivElement>(null)
+  const onRootPointerDown = (e: { readonly target: EventTarget }) => {
+    const win = (e.target as HTMLElement).closest("[data-win-id]")?.getAttribute("data-win-id")
+    focus.current = win ? Number(win) : "desktop"
+  }
+
+  useEffect(() => {
+    const onPointerDown = (e: PointerEvent) => {
+      if (!rootRef.current?.contains(e.target as Node)) focus.current = null
+    }
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (focus.current === null || state.confirm !== null || isTextField(e.target)) return
+      // A closed window hands the keys to the one on top, as in Windows.
+      const win = focus.current === "desktop" ? undefined : (state.windows.find((w) => w.id === focus.current) ?? state.windows.at(-1))
+      const folderId = win?.nodeId ?? DESKTOP_ID
+      if (getNode(state.fs, folderId)?.kind !== "folder") return
+      const command = commandForKey(state, { key: e.key, code: e.code, ctrl: e.ctrlKey || e.metaKey }, folderId)
+      if (command === null) return
+      e.preventDefault()
+      if (command.type === "openItem") open(command.nodeId, win?.id)
+      else dispatch(command)
+    }
+    document.addEventListener("pointerdown", onPointerDown, true)
+    document.addEventListener("keydown", onKeyDown)
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown, true)
+      document.removeEventListener("keydown", onKeyDown)
+    }
+  }, [state, open])
+
   const { bind, drag } = usePointer({
     onSelect: (nodeId, additive) => dispatch({ type: "select", nodeId, additive }),
     onOpen: (nodeId) => {
@@ -77,7 +117,7 @@ export const EduDesktop = ({ scenario, onCheck }: Props) => {
   const dragCount = drag && state.selected.includes(drag.nodeId) ? state.selected.length : 1
 
   return (
-    <div className={`ed-root ${scenario.large ? "ed-large" : ""}`}>
+    <div ref={rootRef} className={`ed-root ${scenario.large ? "ed-large" : ""}`} onPointerDownCapture={onRootPointerDown}>
       <div className="ed-desktop">
         <ItemGrid state={state} containerId={DESKTOP_ID} items={desktopItems} bind={bind} dispatch={dispatch} variant="desktop" />
         {state.windows.map((win, i) => {

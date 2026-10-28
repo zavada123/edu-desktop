@@ -64,6 +64,7 @@ export type Action =
   | { readonly type: "moveWin"; readonly winId: number; readonly x: number; readonly y: number }
   | { readonly type: "toggleMax"; readonly winId: number }
   | { readonly type: "select"; readonly nodeId: NodeId | null; readonly additive: boolean }
+  | { readonly type: "selectAll"; readonly containerId: NodeId }
   | { readonly type: "toggleMulti" }
   | { readonly type: "startRename"; readonly nodeId: NodeId }
   | { readonly type: "commitRename"; readonly nodeId: NodeId; readonly name: string }
@@ -220,6 +221,8 @@ export const reducer = (state: DesktopState, action: Action): DesktopState => {
       return updateWin(state, action.winId, (w) => ({ ...w, maximized: !w.maximized }))
     case "select":
       return select(state, action.nodeId, action.additive || state.multi)
+    case "selectAll":
+      return { ...state, menu: null, renaming: null, selected: userIds(fs.childrenOf(state.fs, action.containerId).map((n) => n.id)) }
     case "toggleMulti":
       return { ...state, multi: !state.multi, menu: null }
     case "startRename":

@@ -27,6 +27,7 @@ export const Window = ({ win, title, icon, active, zIndex, dispatch, children }:
 
   return (
     <section
+      data-win-id={win.id}
       className={`ed-win ${win.maximized ? "is-max" : ""} ${active ? "is-active" : ""}`}
       style={{ left: win.x, top: win.y, zIndex }}
       aria-label={title}
