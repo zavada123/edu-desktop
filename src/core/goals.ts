@@ -9,6 +9,8 @@ export type Goal =
   | { readonly type: "exists"; readonly path: string; readonly kind?: NodeKind; readonly text?: string; readonly hint?: string }
   | { readonly type: "absent"; readonly path: string; readonly text?: string; readonly hint?: string }
   | { readonly type: "inBin"; readonly name: string; readonly text?: string; readonly hint?: string }
+  /** The item at `path` was deleted into the bin and then restored. */
+  | { readonly type: "restored"; readonly path: string; readonly text?: string; readonly hint?: string }
   | {
       readonly type: "count"
       readonly folder: string
@@ -63,6 +65,8 @@ export const describeGoal = (goal: Goal): string => {
     }
     case "inBin":
       return `«${goal.name}» лежить у кошику`
+    case "restored":
+      return `«${lastPart(goal.path).name}» видалено в кошик і відновлено`
     case "count": {
       const n = goal.equals
       const files = plural(n, "файл", "файли", "файлів")
@@ -87,6 +91,8 @@ const defaultHint = (goal: Goal): string => {
       return "Цей об'єкт ще на місці. Його треба перемістити або видалити."
     case "inBin":
       return "Видали об'єкт: права кнопка миші (або довге натискання) → «Видалити»."
+    case "restored":
+      return "Видали об'єкт у кошик, потім відкрий «Кошик» і вибери «Відновити»."
     case "count":
       return "Порахуй, скільки об'єктів лежить у папці зараз, і порівняй із завданням."
   }
@@ -102,6 +108,8 @@ const isMet = (state: FsState, goal: Goal): boolean => {
       return findByPath(state, goal.path) === undefined
     case "inBin":
       return childrenOf(state, BIN_ID).some((n) => sameName(n.name, goal.name))
+    case "restored":
+      return findByPath(state, goal.path)?.restored === true
     case "count": {
       const folder = findByPath(state, goal.folder)
       if (!folder || folder.kind !== "folder") return false

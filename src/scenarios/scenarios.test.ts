@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest"
-import { copy, create, DESKTOP_ID, findByPath, type FsResult, type FsState, move, remove, rename } from "../core/fs.ts"
+import { BIN_ID, childrenOf, copy, create, DESKTOP_ID, driveId, findByPath, type FsResult, type FsState, move, remove, rename, restore } from "../core/fs.ts"
 import { allMet, checkGoals } from "../core/goals.ts"
 import { buildState } from "../core/tree.ts"
 import { scenarios } from "./index.ts"
@@ -12,6 +12,95 @@ describe("scenarios", () => {
 
   test("ids are unique", () => {
     expect(new Set(scenarios.map((s) => s.id)).size).toBe(scenarios.length)
+  })
+})
+
+const scenario = (id: string) => {
+  const found = scenarios.find((s) => s.id === id)
+  if (!found) throw new Error(`немає сценарію ${id}`)
+  return found
+}
+const step = (result: FsResult): FsState => {
+  if (!result.ok) throw new Error(result.error)
+  return result.state
+}
+const at = (state: FsState, path: string): string => {
+  const node = findByPath(state, path)
+  if (!node) throw new Error(`немає ${path}`)
+  return node.id
+}
+const failed = (id: string, state: FsState) => checkGoals(state, scenario(id).goals).filter((r) => !r.ok).map((r) => r.text)
+
+describe("5 клас, вправа 6", () => {
+  const binItem = (s: FsState): string => childrenOf(s, BIN_ID)[0]?.id ?? ""
+  const build = () => {
+    let s = buildState(scenario("g5-exercise-6").start)
+    s = step(create(s, DESKTOP_ID, "folder", "5 клас"))
+    for (const name of ["Інформатика", "Українська мова", "Історія України"]) s = step(create(s, at(s, "5 клас"), "folder", name))
+    return s
+  }
+
+  test("is solved only after delete and restore", () => {
+    const made = build()
+    expect(failed("g5-exercise-6", made)).toEqual(["Папку «5 клас» видалено в кошик і відновлено"])
+    const deleted = step(remove(made, at(made, "5 клас")))
+    const restored = step(restore(deleted, binItem(deleted)))
+    expect(failed("g5-exercise-6", restored)).toEqual([])
+  })
+
+  test("dragging out of the bin also counts as restoring", () => {
+    const made = build()
+    const deleted = step(remove(made, at(made, "5 клас")))
+    expect(failed("g5-exercise-6", step(move(deleted, binItem(deleted), DESKTOP_ID)))).toEqual([])
+  })
+})
+
+describe("5 клас, файли за типами", () => {
+  test("can be solved", () => {
+    let s = buildState(scenario("g5-file-types").start)
+    const sorting: Record<string, ReadonlyArray<string>> = {
+      Малюнки: ["море.jpg", "кіт.png"],
+      Тексти: ["реферат.docx", "нотатки.txt"],
+      Музика: ["пісня.mp3", "дзвоник.wav"],
+      Різне: ["оцінки.xlsx", "презентація.pptx"]
+    }
+    for (const [folder, files] of Object.entries(sorting)) {
+      s = step(create(s, at(s, "Мої файли"), "folder", folder))
+      for (const file of files) s = step(move(s, at(s, `Завантаження/${file}`), at(s, `Мої файли/${folder}`)))
+    }
+    expect(failed("g5-file-types", s)).toEqual([])
+  })
+})
+
+describe("5 клас, папка на диску D:", () => {
+  test("can be solved; a folder on the desktop does not count", () => {
+    const sc = scenario("g5-drive-d-folder")
+    let s = buildState(sc.start, sc.drives)
+    s = step(create(s, driveId("D"), "folder", "Інформатика 5 клас"))
+    for (const name of ["Вправи", "Практичні роботи"]) s = step(create(s, at(s, "D:/Інформатика 5 клас"), "folder", name))
+    s = step(copy(s, at(s, "Вправа 5.docx"), at(s, "D:/Інформатика 5 клас/Вправи")))
+    expect(failed("g5-drive-d-folder", s)).toEqual([])
+    expect(failed("g5-drive-d-folder", step(create(s, DESKTOP_ID, "folder", "Інформатика 5 клас")))).toHaveLength(1)
+  })
+})
+
+describe("9 клас, файлове сміття", () => {
+  test("can be solved, and deleting a needed file is caught", () => {
+    let s = buildState(scenario("g9-file-junk").start)
+    const junk = [
+      "Документи/Доповідь_v1.docx",
+      "Документи/Доповідь_v2_final.docx",
+      "Документи/~$Доповідь_final__final.docx",
+      "Документи/звіт.tmp",
+      "Документи/фото класу – копія.jpg",
+      "Завантаження/реферат.docx",
+      "Завантаження/setup_game.exe"
+    ]
+    for (const path of junk) s = step(remove(s, at(s, path)))
+    s = step(rename(s, at(s, "Документи/Доповідь_final__final.docx"), "Доповідь.docx"))
+    expect(failed("g9-file-junk", s)).toEqual([])
+    const tooMuch = step(move(s, at(s, "Документи/реферат.docx"), BIN_ID))
+    expect(failed("g9-file-junk", tooMuch)).toEqual(["У «Документи» лишилися доповідь, реферат і фото класу"])
   })
 })
 

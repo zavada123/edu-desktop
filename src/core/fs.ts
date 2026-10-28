@@ -16,6 +16,8 @@ export interface FsNode {
   readonly parentId: NodeId | null
   /** For items in the recycle bin: the folder to restore them to. */
   readonly deletedFrom?: NodeId
+  /** Taken back out of the recycle bin at least once; a goal can ask for it (5 клас, вправа 6). */
+  readonly restored?: true
 }
 
 export interface FsState {
@@ -173,7 +175,8 @@ export const move = (state: FsState, id: NodeId, targetId: NodeId): FsResult => 
   if (isInside(state, targetId, id)) return fail("Папку не можна перемістити саму в себе")
   const target = getNode(state, targetId)
   if (findChild(state, targetId, node.name)) return fail(`У папці «${target?.name}» вже є «${node.name}»`)
-  return { ok: true, id, state: put(state, { ...withoutDeletedFrom(node), parentId: targetId }) }
+  const fromBin = node.parentId === BIN_ID ? { restored: true as const } : {}
+  return { ok: true, id, state: put(state, { ...withoutDeletedFrom(node), ...fromBin, parentId: targetId }) }
 }
 
 const copyTree = (state: FsState, sourceId: NodeId, parentId: NodeId, name: string): { readonly state: FsState; readonly id: NodeId } => {
@@ -220,7 +223,7 @@ export const restore = (state: FsState, id: NodeId): FsResult => {
   if (!node || node.parentId !== BIN_ID) return fail("Цього об'єкта немає в кошику")
   const home = node.deletedFrom !== undefined && getNode(state, node.deletedFrom) && !isInBin(state, node.deletedFrom) ? node.deletedFrom : DESKTOP_ID
   if (findChild(state, home, node.name)) return fail(`У папці «${getNode(state, home)?.name}» вже є «${node.name}»`)
-  return { ok: true, id, state: put(state, { ...withoutDeletedFrom(node), parentId: home }) }
+  return { ok: true, id, state: put(state, { ...withoutDeletedFrom(node), parentId: home, restored: true }) }
 }
 
 const dropTree = (state: FsState, id: NodeId): FsState => {
