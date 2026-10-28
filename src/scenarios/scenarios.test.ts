@@ -2,7 +2,9 @@ import { describe, expect, test } from "vitest"
 import { BIN_ID, childrenOf, compress, copy, create, createShortcut, DESKTOP_ID, extractAll, markOpened, driveId, findByPath, type FsResult, type FsState, move, remove, rename, restore } from "../core/fs.ts"
 import { allMet, checkGoals } from "../core/goals.ts"
 import { buildState } from "../core/tree.ts"
+import { grade } from "../core/ops.ts"
 import { scenarios } from "./index.ts"
+import { referenceOps } from "./solutions.ts"
 
 describe("scenarios", () => {
   test.each(scenarios.map((s) => [s.id, s] as const))("%s builds and is not solved at the start", (_id, scenario) => {
@@ -197,5 +199,12 @@ describe("4 клас, імена папок", () => {
     for (const name of ["Inna", "Інна"]) s = step(create(s, at(s, "Дослід"), "folder", name))
     for (const name of ["In*na", "NUL"]) expect(create(s, at(s, "Дослід"), "folder", name).ok).toBe(false)
     expect(failed("g4-magic-names", s)).toEqual([])
+  })
+})
+
+describe("reference solutions", () => {
+  test.each(scenarios.map((s) => [s.id, s] as const))("%s: the reference log solves the task", (_id, sc) => {
+    const result = grade(sc, referenceOps(sc))
+    expect(result.ok && result.results.filter((r) => !r.ok).map((r) => r.text)).toEqual([])
   })
 })
