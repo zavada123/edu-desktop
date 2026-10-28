@@ -66,8 +66,10 @@ const animals: Scenario = {
 Пакет має дві частини. `edu-desktop/core` — ядро без React: файлова система, умови, журнал дій і всі сценарії. `edu-desktop/react` — сам тренажер.
 
 ```bash
-npm install github:zavada123/edu-desktop#v0.2.0
+npm install github:zavada123/edu-desktop#<коміт>
 ```
+
+Під час встановлення npm сам збирає пакет (скрипт `prepare`). Указуйте конкретний коміт, щоб оновлення тренажера не змінювали перевірку вже виданих завдань.
 
 ```tsx
 import { EduDesktop } from "edu-desktop/react"
