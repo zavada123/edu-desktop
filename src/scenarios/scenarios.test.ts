@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest"
-import { BIN_ID, childrenOf, compress, copy, create, createShortcut, DESKTOP_ID, extractAll, driveId, findByPath, type FsResult, type FsState, move, remove, rename, restore } from "../core/fs.ts"
+import { BIN_ID, childrenOf, compress, copy, create, createShortcut, DESKTOP_ID, extractAll, markOpened, driveId, findByPath, type FsResult, type FsState, move, remove, rename, restore } from "../core/fs.ts"
 import { allMet, checkGoals } from "../core/goals.ts"
 import { buildState } from "../core/tree.ts"
 import { scenarios } from "./index.ts"
@@ -179,5 +179,23 @@ describe("8 клас, ZIP", () => {
     s = step(rename(s, at(s, "D:/Моя папка/Копія архіву/pictures"), "Мої малюнки"))
     s = step(move(s, at(s, "D:/Моя папка/Копія архіву/Мої малюнки"), at(s, "D:/Моя папка")))
     expect(failed("g8-extract", s)).toEqual([])
+  })
+})
+
+describe("3 клас, відкрити файл", () => {
+  test("only opening the right file counts", () => {
+    const sc = scenario("g3-open-file")
+    const s = buildState(sc.start, sc.drives)
+    expect(failed("g3-open-file", step(markOpened(s, at(s, "Традиції – копія.docx"))))).toHaveLength(1)
+    expect(failed("g3-open-file", step(markOpened(s, at(s, "D:/3 клас/Українська мова/Традиції.docx"))))).toEqual([])
+  })
+})
+
+describe("4 клас, імена папок", () => {
+  test("Inna and Інна can be made, In*na and NUL cannot", () => {
+    let s = step(create(buildState({}), DESKTOP_ID, "folder", "Дослід"))
+    for (const name of ["Inna", "Інна"]) s = step(create(s, at(s, "Дослід"), "folder", name))
+    for (const name of ["In*na", "NUL"]) expect(create(s, at(s, "Дослід"), "folder", name).ok).toBe(false)
+    expect(failed("g4-magic-names", s)).toEqual([])
   })
 })

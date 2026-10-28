@@ -83,7 +83,15 @@ const Paint = () => {
   )
 }
 
-const TextEditor = () => <textarea className="ed-text-editor" aria-label="Текст документа" placeholder="Пиши тут…" />
+const TextEditor = ({ text }: { readonly text: string }) => (
+  <textarea key={text} className="ed-text-editor" aria-label="Текст документа" placeholder="Пиши тут…" defaultValue={text} />
+)
+
+/** Text shown after «Відкрити»: the trainer keeps no file contents, so a short stand-in names the file. */
+const openedText = (state: DesktopState): string => {
+  const node = state.savedAs === null ? undefined : state.fs.nodes[state.savedAs]
+  return node?.opened ? `Це текст файлу «${node.name}». Тут можна його редагувати.` : ""
+}
 
 /** A search result page with one picture; its context menu has «Зберегти зображення як…» (4 клас, с. 20). */
 const Browser = ({ query, onSave }: { readonly query: string; readonly onSave: () => void }) => {
@@ -139,12 +147,16 @@ export const AppContent = ({ app, state, dispatch }: { readonly app: AppSpec; re
   const [fileMenu, setFileMenu] = useState(false)
   const saveAs = () => {
     setFileMenu(false)
-    dispatch({ type: "openSave" })
+    dispatch({ type: "fileDialog", dialog: "save" })
   }
   const save = () => {
     setFileMenu(false)
     if (state.savedAs !== null && state.fs.nodes[state.savedAs]) dispatch({ type: "notify", message: "Збережено." })
-    else dispatch({ type: "openSave" })
+    else dispatch({ type: "fileDialog", dialog: "save" })
+  }
+  const openFile = () => {
+    setFileMenu(false)
+    dispatch({ type: "fileDialog", dialog: "open" })
   }
   if (app.kind === "browser") return <Browser query={app.fileName ?? "зображення"} onSave={saveAs} />
   return (
@@ -155,6 +167,11 @@ export const AppContent = ({ app, state, dispatch }: { readonly app: AppSpec; re
         </button>
         {fileMenu && (
           <ul className="ed-menu ed-app-filemenu" role="menu">
+            <li role="none">
+              <button type="button" role="menuitem" onClick={openFile}>
+                📂 Відкрити…
+              </button>
+            </li>
             <li role="none">
               <button type="button" role="menuitem" onClick={save}>
                 💾 Зберегти
@@ -168,7 +185,7 @@ export const AppContent = ({ app, state, dispatch }: { readonly app: AppSpec; re
           </ul>
         )}
       </div>
-      {app.kind === "paint" ? <Paint /> : <TextEditor />}
+      {app.kind === "paint" ? <Paint /> : <TextEditor text={openedText(state)} />}
     </div>
   )
 }

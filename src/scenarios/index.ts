@@ -519,4 +519,58 @@ const extractZip: Scenario = {
   ]
 }
 
-export const scenarios: ReadonlyArray<Scenario> = [animals, sortPictures, saveDrawing, grandma, filePath, contextMenu, saveText, saveImage, trip, exercise6, fileTypes, driveFolder, shortcuts, practical1, zipFolder, extractZip, fileJunk]
+const openFile: Scenario = {
+  id: "g3-open-file",
+  grade: 3,
+  title: "Відкрий файл з минулого уроку",
+  large: true,
+  app: { kind: "text" },
+  task: [
+    "У текстовому редакторі відкрий файл, опрацьований на минулому уроці: «Файл» → «Відкрити».",
+    "У вікні «Відкрити» вибери «Цей ПК», потім диск D:, папку «3 клас» і папку «Українська мова».",
+    "Вибери файл «Традиції.docx» і натисни «Відкрити».",
+    "Відредагуй текст і збережи його: «Файл» → «Зберегти»."
+  ],
+  start: { "Традиції – копія.docx": null },
+  drives: {
+    "C:": { Програми: {} },
+    "D:": { "3 клас": { "Українська мова": { "Традиції.docx": null, "Вірш.docx": null }, Математика: { "Задачі.docx": null } } }
+  },
+  goals: [
+    {
+      type: "opened",
+      path: "D:/3 клас/Українська мова/Традиції.docx",
+      text: "Відкрито файл D:\\3 клас\\Українська мова\\Традиції.docx",
+      hint: "Потрібен саме файл на диску D: у папці «Українська мова», а не копія на робочому столі."
+    }
+  ]
+}
+
+const magicNames: Scenario = {
+  id: "g4-magic-names",
+  grade: 4,
+  title: "Дослідницька лабораторія: імена папок",
+  large: true,
+  task: [
+    "Створи на робочому столі папку «Дослід».",
+    "Відкрий її і спробуй створити в ній чотири папки з іменами: Inna, Інна, In*na, NUL.",
+    "Які папки вдалося створити? Прочитай, що пише тренажер, коли ім'я не підходить.",
+    "Чи будь-яке ім'я можна надати файлу або папці? Поясни чому."
+  ],
+  start: {},
+  goals: [
+    { type: "exists", path: "Дослід", kind: "folder" },
+    { type: "exists", path: "Дослід/Inna", kind: "folder", text: "Папку Inna створено" },
+    { type: "exists", path: "Дослід/Інна", kind: "folder", text: "Папку Інна створено" },
+    {
+      type: "count",
+      folder: "Дослід",
+      kind: "folder",
+      equals: 2,
+      text: "У папці «Дослід» лише дві папки: In*na і NUL створити не можна",
+      hint: "Перейменуй або видали зайві папки: «Нова папка» не потрібна. In*na і NUL створити неможливо."
+    }
+  ]
+}
+
+export const scenarios: ReadonlyArray<Scenario> = [animals, sortPictures, saveDrawing, openFile, grandma, filePath, contextMenu, magicNames, saveText, saveImage, trip, exercise6, fileTypes, driveFolder, shortcuts, practical1, zipFolder, extractZip, fileJunk]

@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react"
 import { BIN_ID, childrenOf, DESKTOP_ID, DRIVE_LETTERS, displayName, driveId, getNode, type NodeId, saveFile, THIS_PC_ID, windowsPath } from "../core/fs.ts"
+import { extensionOf, sameName } from "../core/names.ts"
 import { APPS } from "./AppWindow.tsx"
 import { ItemIcon, NodeIcon } from "./icons.tsx"
-import type { Action, DesktopState } from "./store.ts"
+import type { Action, DesktopState, FileDialog } from "./store.ts"
 import type { AppSpec } from "../scenarios/types.ts"
 
 const PLACES: ReadonlyArray<NodeId> = [DESKTOP_ID, THIS_PC_ID, ...DRIVE_LETTERS.map(driveId)]
@@ -14,19 +15,21 @@ const placeLabel = (state: DesktopState, id: NodeId): string => {
 }
 
 interface Props {
+  readonly mode: FileDialog
   readonly state: DesktopState
   readonly app: AppSpec
   readonly dispatch: (action: Action) => void
 }
 
 /**
- * «Зберегти як» as the textbooks show it (4 клас, с. 21): places on the left, folders of the current one,
- * «Ім'я файлу», «Тип файлу», «Зберегти» and «Скасувати». A tap on a folder opens it.
+ * «Зберегти як» and «Відкрити» as the textbooks show them (3 клас, с. 54; 4 клас, с. 21): places on the left,
+ * the current folder, «Ім'я файлу», «Тип файлу» and the buttons. A tap on a folder opens it.
  */
-export const SaveDialog = ({ state, app, dispatch }: Props) => {
+export const SaveDialog = ({ mode, state, app, dispatch }: Props) => {
   const { ext, typeLabel, fileName } = APPS[app.kind]
+  const opening = mode === "open"
   const [folderId, setFolderId] = useState<NodeId>(DESKTOP_ID)
-  const [name, setName] = useState(app.fileName ?? fileName)
+  const [name, setName] = useState(opening ? "" : (app.fileName ?? fileName))
   const [newFolder, setNewFolder] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   // Enter removes the input, and its blur would create the folder a second time.
@@ -39,9 +42,18 @@ export const SaveDialog = ({ state, app, dispatch }: Props) => {
     setError(null)
   }
   const parentId = getNode(state.fs, folderId)?.parentId ?? null
-  const items = childrenOf(state.fs, folderId)
+  // «Відкрити» lists only files of the program's type, as Windows does.
+  const items = childrenOf(state.fs, folderId).filter((n) => !opening || n.kind === "folder" || `.${extensionOf(n.name)}` === ext)
+  const close = () => dispatch({ type: "fileDialog", dialog: null })
 
+  const open = (fileName: string) => {
+    const wanted = fileName.trim()
+    const file = childrenOf(state.fs, folderId).find((n) => n.kind === "file" && (sameName(n.name, wanted) || sameName(n.name, `${wanted}${ext}`)))
+    if (!file) return setError(wanted.length === 0 ? "Вибери файл" : `Файл «${wanted}» не знайдено в цій папці.`)
+    dispatch({ type: "openFile", nodeId: file.id })
+  }
   const save = () => {
+    if (opening) return open(name)
     const result = saveFile(state.fs, folderId, name, ext)
     if (!result.ok) return setError(result.error)
     dispatch({ type: "saveFile", folderId, name, ext })
@@ -59,12 +71,12 @@ export const SaveDialog = ({ state, app, dispatch }: Props) => {
 
   return (
     <div className="ed-modal-backdrop">
-      <div className="ed-dialog ed-save" role="dialog" aria-modal="true" aria-labelledby="ed-save-title" onKeyDown={(e) => e.key === "Escape" && dispatch({ type: "closeSave" })}>
+      <div className="ed-dialog ed-save" role="dialog" aria-modal="true" aria-labelledby="ed-save-title" onKeyDown={(e) => e.key === "Escape" && close()}>
         <div className="ed-titlebar">
           <span id="ed-save-title" className="ed-title">
-            {app.kind === "browser" ? "Зберегти зображення як" : "Зберегти як"}
+            {opening ? "Відкрити" : app.kind === "browser" ? "Зберегти зображення як" : "Зберегти як"}
           </span>
-          <button type="button" className="ed-tb-btn ed-close" aria-label="Закрити" onClick={() => dispatch({ type: "closeSave" })}>
+          <button type="button" className="ed-tb-btn ed-close" aria-label="Закрити" onClick={() => close()}>
             ✕
           </button>
         </div>
@@ -73,7 +85,7 @@ export const SaveDialog = ({ state, app, dispatch }: Props) => {
             ↑
           </button>
           <span className="ed-save-path">{windowsPath(state.fs, folderId)}</span>
-          <button type="button" disabled={folderId === THIS_PC_ID} onClick={startFolder}>
+          <button type="button" disabled={folderId === THIS_PC_ID} hidden={opening} onClick={startFolder}>
             ＋ Нова папка
           </button>
         </div>
@@ -114,7 +126,8 @@ export const SaveDialog = ({ state, app, dispatch }: Props) => {
                 <button
                   type="button"
                   className={node.kind === "folder" ? "" : "is-file"}
-                  onClick={() => (node.kind === "folder" && node.id !== BIN_ID ? go(node.id) : node.kind === "file" && setName(node.name))}
+                  onClick={() => (node.kind === "folder" && node.id !== BIN_ID ? go(node.id) : node.kind === "file" && (setName(node.name), setError(null)))}
+                  onDoubleClick={() => opening && node.kind === "file" && open(node.name)}
                 >
                   <ItemIcon fs={state.fs} node={node} binHasItems={false} size={24} />
                   {displayName(node)}
@@ -141,9 +154,9 @@ export const SaveDialog = ({ state, app, dispatch }: Props) => {
         </div>
         <div className="ed-dialog-actions">
           <button type="button" className="ed-yes" onClick={save}>
-            Зберегти
+            {opening ? "Відкрити" : "Зберегти"}
           </button>
-          <button type="button" onClick={() => dispatch({ type: "closeSave" })}>
+          <button type="button" onClick={() => close()}>
             Скасувати
           </button>
         </div>

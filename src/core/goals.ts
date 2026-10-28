@@ -10,6 +10,8 @@ export type Goal =
   | { readonly type: "exists"; readonly path: string; readonly kind?: NodeKind | "zip"; readonly text?: string; readonly hint?: string }
   | { readonly type: "absent"; readonly path: string; readonly text?: string; readonly hint?: string }
   | { readonly type: "inBin"; readonly name: string; readonly text?: string; readonly hint?: string }
+  /** The file at `path` was opened in the program with «Файл → Відкрити». */
+  | { readonly type: "opened"; readonly path: string; readonly text?: string; readonly hint?: string }
   /** The item at `path` was deleted into the bin and then restored. */
   /** In `folder` lies a shortcut (any name) that opens the object at `target`. */
   | { readonly type: "shortcut"; readonly folder: string; readonly target: string; readonly text?: string; readonly hint?: string }
@@ -70,6 +72,8 @@ export const describeGoal = (goal: Goal): string => {
       return `«${goal.name}» лежить у кошику`
     case "shortcut":
       return `${folderLabel(goal.folder)} є ярлик до «${lastPart(goal.target).name}»`.replace(/^./, (c) => c.toUpperCase())
+    case "opened":
+      return `Файл «${lastPart(goal.path).name}» відкрито в програмі`
     case "restored":
       return `«${lastPart(goal.path).name}» видалено в кошик і відновлено`
     case "count": {
@@ -98,6 +102,8 @@ const defaultHint = (goal: Goal): string => {
       return "Видали об'єкт: права кнопка миші (або довге натискання) → «Видалити»."
     case "shortcut":
       return "Клацни правою кнопкою на об'єкті → «Надіслати» → «Робочий стіл (створити ярлик)» або «Створити ярлик»."
+    case "opened":
+      return "У програмі вибери «Файл» → «Відкрити», знайди потрібні диск і папку, вибери файл і натисни «Відкрити»."
     case "restored":
       return "Видали об'єкт у кошик, потім відкрий «Кошик» і вибери «Відновити»."
     case "count":
@@ -122,6 +128,8 @@ const isMet = (state: FsState, goal: Goal): boolean => {
       if (!folder || !target) return false
       return childrenOf(state, folder.id).some((n) => shortcutTarget(state, n)?.id === target.id)
     }
+    case "opened":
+      return findByPath(state, goal.path)?.opened === true
     case "restored":
       return findByPath(state, goal.path)?.restored === true
     case "count": {

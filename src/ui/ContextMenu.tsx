@@ -77,6 +77,14 @@ const sendMenu = (state: DesktopState, targetId: NodeId): ReadonlyArray<MenuItem
   { label: "Стиснута ZIP-папка", command: { type: "compress", ids: targetsOf(state, targetId) } }
 ]
 
+/** After a right-button drag (5 клас, рис. 6.4). */
+const dropMenu = ({ ids, targetId }: NonNullable<Menu["drop"]>): ReadonlyArray<MenuItem> => [
+  { label: "Копіювати сюди", command: { type: "drop", ids, targetId, copy: true } },
+  { label: "Перемістити сюди", command: { type: "drop", ids, targetId, copy: false } },
+  { label: "Створити ярлики", command: { type: "shortcut", ids, targetId } },
+  { label: "Скасувати", command: { type: "menu", menu: null } }
+]
+
 const SUBMENU_TITLES: Record<Submenu, string> = { create: "Створити", send: "Надіслати" }
 
 interface Props {
@@ -98,8 +106,9 @@ export const ContextMenu = ({ state, menu, dispatch, onOpen }: Props) => {
     setPos({ left: Math.max(4, Math.min(menu.x, window.innerWidth - width - 4)), top: Math.max(4, Math.min(menu.y, window.innerHeight - height - 4)) })
   }, [menu.x, menu.y, submenu])
 
-  const items =
-    submenu === "create"
+  const items = menu.drop
+    ? dropMenu(menu.drop)
+    : submenu === "create"
       ? createMenu(menu.containerId)
       : submenu === "send" && menu.targetId !== null
         ? sendMenu(state, menu.targetId)

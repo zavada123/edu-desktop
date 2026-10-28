@@ -29,6 +29,8 @@ export interface Menu {
   readonly containerId: NodeId
   /** The clicked item, or `null` for the empty space of a folder. */
   readonly targetId: NodeId | null
+  /** Shown after a right-button drag: «Копіювати сюди», «Перемістити сюди», «Створити ярлики». */
+  readonly drop?: { readonly ids: ReadonlyArray<NodeId>; readonly targetId: NodeId }
 }
 
 /** Question shown before an action that is hard to undo, as Windows asks it. */
@@ -52,11 +54,13 @@ export interface DesktopState {
   readonly confirm: Confirm | null
   readonly message: string | null
   readonly results: ReadonlyArray<GoalResult> | null
-  /** The «Зберегти як» window of the program is open. */
-  readonly saving: boolean
-  /** File the program saved its work to; shown in its title. */
+  /** The program's «Зберегти як» or «Відкрити» window. */
+  readonly fileDialog: FileDialog | null
+  /** File the program saved its work to or opened; shown in its title. */
   readonly savedAs: NodeId | null
 }
+
+export type FileDialog = "save" | "open"
 
 /** Window id of the scenario's program (Paint, text editor, browser); it is not a file-system node. */
 export const APP_ID: NodeId = "app"
@@ -66,8 +70,8 @@ type Ids = ReadonlyArray<NodeId>
 export type Action =
   | { readonly type: "reset"; readonly fs: FsState; readonly withApp?: boolean }
   | { readonly type: "openApp" }
-  | { readonly type: "openSave" }
-  | { readonly type: "closeSave" }
+  | { readonly type: "fileDialog"; readonly dialog: FileDialog | null }
+  | { readonly type: "openFile"; readonly nodeId: NodeId }
   | { readonly type: "saveFile"; readonly folderId: NodeId; readonly name: string; readonly ext: string }
   | { readonly type: "newFolder"; readonly containerId: NodeId; readonly name: string }
   | { readonly type: "open"; readonly nodeId: NodeId }
@@ -124,7 +128,7 @@ const blankState = (fsState: FsState): DesktopState => ({
   confirm: null,
   message: null,
   results: null,
-  saving: false,
+  fileDialog: null,
   savedAs: null
 })
 
@@ -253,12 +257,12 @@ export const reducer = (state: DesktopState, action: Action): DesktopState => {
       return initialState(action.fs, action.withApp)
     case "openApp":
       return openWin(state, APP_ID)
-    case "openSave":
-      return { ...state, saving: true, menu: null }
-    case "closeSave":
-      return { ...state, saving: false }
+    case "fileDialog":
+      return { ...state, fileDialog: action.dialog, menu: null }
     case "saveFile":
-      return applyFs(state, fs.saveFile(state.fs, action.folderId, action.name, action.ext), (s, id) => ({ ...s, saving: false, savedAs: id }))
+      return applyFs(state, fs.saveFile(state.fs, action.folderId, action.name, action.ext), (s, id) => ({ ...s, fileDialog: null, savedAs: id }))
+    case "openFile":
+      return applyFs(state, fs.markOpened(state.fs, action.nodeId), (s, id) => ({ ...s, fileDialog: null, savedAs: id }))
     case "newFolder":
       return applyFs(state, fs.create(state.fs, action.containerId, "folder", action.name))
     case "open":

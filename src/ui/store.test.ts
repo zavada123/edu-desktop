@@ -107,12 +107,12 @@ describe("program and «Зберегти як»", () => {
   })
 
   test("saving closes the dialog and remembers the file; an existing name keeps it open", () => {
-    const asked = run(initialState(start.fs, true), { type: "openSave" })
+    const asked = run(initialState(start.fs, true), { type: "fileDialog", dialog: "save" })
     const saved = run(asked, { type: "saveFile", folderId: idOf(start.fs, "Тварини"), name: "Україна", ext: ".png" })
-    expect(saved.saving).toBe(false)
+    expect(saved.fileDialog).toBeNull()
     expect(saved.savedAs).toBe(idOf(saved.fs, "Тварини/Україна.png"))
-    const twice = run(saved, { type: "openSave" }, { type: "saveFile", folderId: idOf(start.fs, "Тварини"), name: "Україна", ext: ".png" })
-    expect(twice.saving).toBe(true)
+    const twice = run(saved, { type: "fileDialog", dialog: "save" }, { type: "saveFile", folderId: idOf(start.fs, "Тварини"), name: "Україна", ext: ".png" })
+    expect(twice.fileDialog).toBe("save")
     expect(twice.message).toContain("уже є")
   })
 })
@@ -129,5 +129,19 @@ describe("Shift+click and ZIP", () => {
     const zip = findByPath(state.fs, "кіт.zip")
     expect(zip?.zip).toBe(true)
     expect(state.renaming).toBe(zip?.id)
+  })
+})
+
+describe("«Відкрити» and the drop menu", () => {
+  test("opening a file marks it and closes the dialog", () => {
+    const state = run(initialState(start.fs, true), { type: "fileDialog", dialog: "open" }, { type: "openFile", nodeId: letter })
+    expect(state.fileDialog).toBeNull()
+    expect(state.savedAs).toBe(letter)
+    expect(state.fs.nodes[letter]?.opened).toBe(true)
+  })
+
+  test("«Створити ярлики» from the drop menu puts shortcuts into the target folder", () => {
+    const state = run(start, { type: "shortcut", ids: [cat, dog], targetId: idOf(start.fs, "Тварини") })
+    expect(childrenOf(state.fs, idOf(start.fs, "Тварини")).map((n) => n.name)).toEqual(["кіт.png – ярлик", "собака.png – ярлик"])
   })
 })

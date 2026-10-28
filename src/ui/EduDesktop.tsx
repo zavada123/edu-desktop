@@ -89,7 +89,7 @@ export const EduDesktop = ({ scenario, onCheck }: Props) => {
       if (!rootRef.current?.contains(e.target as Node)) focus.current = null
     }
     const onKeyDown = (e: KeyboardEvent) => {
-      if (focus.current === null || state.confirm !== null || state.saving || isTextField(e.target)) return
+      if (focus.current === null || state.confirm !== null || state.fileDialog !== null || isTextField(e.target)) return
       // A closed window hands the keys to the one on top, as in Windows.
       const focused = state.windows.find((w) => w.id === focus.current && !w.minimized)
       const win = focus.current === "desktop" ? undefined : (focused ?? activeWin(state))
@@ -121,7 +121,15 @@ export const EduDesktop = ({ scenario, onCheck }: Props) => {
       dispatch({ type: "menu", menu: { x, y, containerId, targetId } })
     },
     onDrop: (nodeId, targetId, copy) =>
-      dispatch({ type: "drop", ids: state.selected.includes(nodeId) ? state.selected : [nodeId], targetId, copy })
+      dispatch({ type: "drop", ids: state.selected.includes(nodeId) ? state.selected : [nodeId], targetId, copy }),
+    onDropMenu: (x, y, nodeId, targetId) => {
+      const ids = state.selected.includes(nodeId) ? state.selected : [nodeId]
+      // Into the bin there is nothing to ask: it is always «Перемістити».
+      if (targetId === BIN_ID) dispatch({ type: "drop", ids, targetId, copy: false })
+      else dispatch({ type: "menu", menu: { x, y, containerId: targetId, targetId: null, drop: { ids, targetId } } })
+    },
+    isSoleSelected: (nodeId) => state.selected.length === 1 && state.selected[0] === nodeId,
+    onRename: (nodeId) => dispatch({ type: "startRename", nodeId })
   })
 
   const binHasItems = childrenOf(state.fs, BIN_ID).length > 0
@@ -206,7 +214,7 @@ export const EduDesktop = ({ scenario, onCheck }: Props) => {
           </button>
         )}
       </footer>
-      {state.saving && scenario.app && <SaveDialog state={state} app={scenario.app} dispatch={dispatch} />}
+      {state.fileDialog && scenario.app && <SaveDialog key={state.fileDialog} mode={state.fileDialog} state={state} app={scenario.app} dispatch={dispatch} />}
       {state.confirm && <ConfirmDialog state={state} confirm={state.confirm} dispatch={dispatch} />}
       {state.menu && <ContextMenu state={state} menu={state.menu} dispatch={dispatch} onOpen={(id) => open(id)} />}
       {state.message && (
@@ -218,7 +226,7 @@ export const EduDesktop = ({ scenario, onCheck }: Props) => {
         <div className="ed-ghost" style={{ left: drag.x, top: drag.y }}>
           <ItemIcon fs={state.fs} node={dragged} binHasItems={binHasItems} size={40} />
           <span>
-            {drag.copy ? "＋ " : ""}
+            {drag.copy ? "＋ " : drag.right ? "? " : ""}
             {dragCount > 1 ? `${dragCount} об'єкти` : dragged.name}
           </span>
         </div>

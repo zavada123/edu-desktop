@@ -22,6 +22,8 @@ export interface FsNode {
   readonly target?: NodeId
   /** A compressed ZIP folder (8 клас): Windows opens it like a folder. */
   readonly zip?: true
+  /** Opened in a program through «Файл → Відкрити»; a goal can ask for it (3 клас, с. 54). */
+  readonly opened?: true
 }
 
 export interface FsState {
@@ -259,6 +261,13 @@ export const compress = (state: FsState, ids: ReadonlyArray<NodeId>, name: strin
   const zipped = put(made.state, { ...(getNode(made.state, made.id) ?? first), zip: true })
   const filled = ids.reduce((acc, id) => copyTree(acc, id, made.id, getNode(acc, id)?.name ?? "").state, zipped)
   return { ok: true, id: made.id, state: filled }
+}
+
+/** «Файл → Відкрити» in a program. */
+export const markOpened = (state: FsState, id: NodeId): FsResult => {
+  const node = getNode(state, id)
+  if (!node || node.kind !== "file" || isInBin(state, id)) return fail("Цей файл не можна відкрити")
+  return { ok: true, id, state: put(state, { ...node, opened: true }) }
 }
 
 /** Turns a folder into a ZIP folder; scenario trees use it for `name.zip` entries. */
