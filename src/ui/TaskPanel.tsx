@@ -16,15 +16,16 @@ interface Props {
 export const TaskPanel = ({ scenario, state, open, onToggle, onReset, dispatch, selfCheck }: Props) => {
   const results = state.results
   const solved = results !== null && allMet(results)
+  // Not a landmark (aside, header): a page can show several trainers, and their landmarks would have the same name.
   return (
-    <aside className={`ed-task ${open ? "is-open" : ""}`} aria-label="Завдання">
-      <header className="ed-task-head">
+    <div className={`ed-task ${open ? "is-open" : ""}`}>
+      <div className="ed-task-head">
         {scenario.grade > 0 && <span className="ed-grade">{scenario.grade} клас</span>}
         <h2>{scenario.title}</h2>
         <button type="button" className="ed-task-hide" aria-label="Сховати завдання" onClick={onToggle}>
           ✕
         </button>
-      </header>
+      </div>
       <ol className="ed-task-steps">
         {scenario.task.map((step) => (
           <li key={step}>{step}</li>
@@ -53,6 +54,6 @@ export const TaskPanel = ({ scenario, state, open, onToggle, onReset, dispatch, 
           </ul>
         </div>
       )}
-    </aside>
+    </div>
   )
 }
