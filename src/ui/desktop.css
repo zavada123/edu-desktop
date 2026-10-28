@@ -1,0 +1,557 @@
+/* Trainer look: a calm, generic desktop. All classes start with `ed-` so the trainer can live inside any page. */
+
+.ed-root {
+  --ed-accent: #2563eb;
+  --ed-accent-soft: rgba(37, 99, 235, 0.16);
+  --ed-text: #1b2230;
+  --ed-muted: #5b6577;
+  --ed-panel: #ffffff;
+  --ed-line: #d6dce5;
+  --ed-ok: #15803d;
+  --ed-bad: #b91c1c;
+  --ed-item: 92px;
+  --ed-font: 13px;
+  --ed-taskbar: 48px;
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 480px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  font: var(--ed-font) / 1.35 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color: var(--ed-text);
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* Grades 3–4: larger targets and text. */
+.ed-root.ed-large {
+  --ed-item: 112px;
+  --ed-font: 15px;
+}
+
+.ed-root button {
+  font: inherit;
+  color: inherit;
+}
+
+.ed-desktop {
+  position: relative;
+  flex: 1;
+  overflow: hidden;
+  background: linear-gradient(160deg, #6fb1fc 0%, #4364f7 55%, #2b3a9f 100%);
+}
+
+/* ── Items ───────────────────────────────────────────────────── */
+
+.ed-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, var(--ed-item));
+  grid-auto-rows: min-content;
+  gap: 6px;
+  padding: 10px;
+  align-content: start;
+}
+
+.ed-grid--desktop {
+  position: absolute;
+  inset: 0;
+  grid-auto-flow: column;
+  grid-template-rows: repeat(auto-fill, calc(var(--ed-item) + 8px));
+  grid-template-columns: none;
+  grid-auto-columns: var(--ed-item);
+  overflow: auto;
+}
+
+.ed-grid--explorer {
+  flex: 1;
+  overflow: auto;
+  background: #fff;
+}
+
+.ed-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 4px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  cursor: default;
+  touch-action: none;
+  text-align: center;
+}
+
+.ed-item:hover {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.ed-grid--explorer .ed-item:hover {
+  background: #eef3fb;
+}
+
+.ed-item.is-selected {
+  background: var(--ed-accent-soft);
+  border-color: rgba(37, 99, 235, 0.55);
+}
+
+.ed-grid--desktop .ed-item.is-selected {
+  background: rgba(255, 255, 255, 0.32);
+  border-color: rgba(255, 255, 255, 0.7);
+}
+
+.ed-item.is-cut {
+  opacity: 0.45;
+}
+
+.ed-label {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.ed-grid--desktop .ed-label {
+  color: #fff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
+}
+
+.ed-rename {
+  width: 100%;
+  font: inherit;
+  padding: 2px 4px;
+  border: 1px solid var(--ed-accent);
+  border-radius: 3px;
+  text-align: center;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.ed-empty {
+  grid-column: 1 / -1;
+  color: var(--ed-muted);
+  text-align: center;
+  margin-top: 24px;
+}
+
+/* ── Windows ─────────────────────────────────────────────────── */
+
+.ed-win {
+  position: absolute;
+  width: min(640px, calc(100% - 24px));
+  height: min(420px, calc(100% - 24px));
+  display: flex;
+  flex-direction: column;
+  background: var(--ed-panel);
+  border: 1px solid #9aa7ba;
+  border-radius: 8px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.3);
+  overflow: hidden;
+}
+
+.ed-win.is-max {
+  inset: 0 !important;
+  width: auto;
+  height: auto;
+  border-radius: 0;
+}
+
+.ed-titlebar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding-left: 10px;
+  background: #e9eef5;
+  touch-action: none;
+}
+
+.ed-win.is-active .ed-titlebar {
+  background: #dbe5f3;
+}
+
+.ed-title {
+  flex: 1;
+  font-weight: 600;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.ed-title-icon {
+  display: flex;
+}
+
+.ed-tb-btn {
+  width: 44px;
+  height: 100%;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.ed-tb-btn:hover {
+  background: rgba(0, 0, 0, 0.08);
+}
+
+.ed-close:hover {
+  background: #e81123;
+  color: #fff;
+}
+
+.ed-explorer {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.ed-toolbar {
+  display: flex;
+  gap: 4px;
+  padding: 6px;
+  border-bottom: 1px solid var(--ed-line);
+  overflow-x: auto;
+  flex-shrink: 0;
+}
+
+.ed-toolbar button {
+  flex-shrink: 0;
+  min-height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--ed-line);
+  border-radius: 6px;
+  background: #f7f9fc;
+  cursor: pointer;
+}
+
+.ed-toolbar button:hover:not(:disabled) {
+  background: #e8eef8;
+}
+
+.ed-toolbar button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.ed-address {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--ed-line);
+  background: #fbfcfe;
+  flex-shrink: 0;
+}
+
+.ed-address button {
+  border: 0;
+  background: transparent;
+  padding: 3px 5px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.ed-address button:hover {
+  background: #e8eef8;
+}
+
+.ed-crumb-sep {
+  color: var(--ed-muted);
+  padding: 0 2px;
+}
+
+.ed-status {
+  padding: 3px 10px;
+  color: var(--ed-muted);
+  border-top: 1px solid var(--ed-line);
+  flex-shrink: 0;
+}
+
+.ed-viewer {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 16px;
+  text-align: center;
+}
+
+.ed-viewer p {
+  font-weight: 600;
+  margin: 0;
+}
+
+.ed-viewer small {
+  color: var(--ed-muted);
+  max-width: 320px;
+}
+
+/* ── Taskbar, menu, messages ─────────────────────────────────── */
+
+.ed-taskbar {
+  height: var(--ed-taskbar);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 6px;
+  background: rgba(240, 244, 250, 0.96);
+  border-top: 1px solid var(--ed-line);
+  overflow-x: auto;
+}
+
+.ed-start {
+  width: 42px;
+  height: 38px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  font-size: 20px !important;
+  cursor: pointer;
+}
+
+.ed-task-btn {
+  max-width: 160px;
+  height: 36px;
+  padding: 0 10px;
+  border: 1px solid var(--ed-line);
+  border-radius: 6px;
+  background: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+.ed-menu-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+}
+
+.ed-menu {
+  position: fixed;
+  z-index: 901;
+  min-width: 200px;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  background: #fff;
+  border: 1px solid var(--ed-line);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.22);
+}
+
+.ed-menu button {
+  width: 100%;
+  min-height: 38px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ed-menu button:hover:not(:disabled) {
+  background: #eef3fb;
+}
+
+.ed-menu button:disabled {
+  opacity: 0.4;
+}
+
+.ed-toast {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--ed-taskbar) + 12px);
+  transform: translateX(-50%);
+  z-index: 950;
+  max-width: calc(100% - 32px);
+  padding: 10px 16px;
+  border-radius: 8px;
+  background: #1f2937;
+  color: #fff;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+}
+
+.ed-ghost {
+  position: fixed;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+  transform: translate(-30%, -60%);
+  pointer-events: none;
+}
+
+/* ── Task panel ──────────────────────────────────────────────── */
+
+.ed-task {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 500;
+  width: 320px;
+  max-height: calc(100% - 20px);
+  overflow: auto;
+  display: none;
+  padding: 14px;
+  background: var(--ed-panel);
+  border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+
+.ed-task.is-open {
+  display: block;
+}
+
+.ed-task-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ed-task-head h2 {
+  flex: 1;
+  margin: 0;
+  font-size: 1.15em;
+}
+
+.ed-grade {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--ed-accent-soft);
+  color: var(--ed-accent);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.ed-task-hide {
+  border: 0;
+  background: transparent;
+  width: 32px;
+  height: 32px;
+  cursor: pointer;
+}
+
+.ed-task-steps {
+  padding-left: 20px;
+}
+
+.ed-task-steps li {
+  margin-bottom: 6px;
+}
+
+.ed-task-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.ed-check,
+.ed-reset {
+  min-height: 40px;
+  padding: 0 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600 !important;
+}
+
+.ed-check {
+  border: 0;
+  background: var(--ed-accent);
+  color: #fff !important;
+}
+
+.ed-reset {
+  border: 1px solid var(--ed-line);
+  background: #fff;
+}
+
+.ed-task-show {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 500;
+  min-height: 40px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.ed-results {
+  margin-top: 12px;
+  padding: 10px;
+  border-radius: 8px;
+  background: #fff7ed;
+}
+
+.ed-results.is-solved {
+  background: #ecfdf3;
+}
+
+.ed-results-head {
+  margin: 0 0 6px;
+  font-weight: 700;
+}
+
+.ed-results ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ed-results li {
+  margin-bottom: 6px;
+}
+
+.ed-results small {
+  display: block;
+  margin-left: 24px;
+  color: var(--ed-bad);
+}
+
+/* ── Phones ──────────────────────────────────────────────────── */
+
+@media (max-width: 700px) {
+  .ed-win {
+    inset: 0 !important;
+    width: auto;
+    height: auto;
+    border-radius: 0;
+  }
+
+  .ed-tb-btn.ed-max {
+    display: none;
+  }
+
+  .ed-task {
+    top: auto;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: auto;
+    max-height: 60%;
+    border-radius: 14px 14px 0 0;
+  }
+
+  .ed-task-show {
+    top: auto;
+    bottom: 10px;
+  }
+}
