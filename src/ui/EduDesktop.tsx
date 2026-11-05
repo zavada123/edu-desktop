@@ -7,6 +7,7 @@ import type { AppKind, Scenario } from "../scenarios/types.ts"
 import { ConfirmDialog } from "./ConfirmDialog.tsx"
 import { ContextMenu } from "./ContextMenu.tsx"
 import { Explorer } from "./Explorer.tsx"
+import { useFullScreen } from "./fullscreen.ts"
 import { iconKindOf, ItemIcon, NodeIcon } from "./icons.tsx"
 import { ItemGrid } from "./ItemGrid.tsx"
 import { commandForKey } from "./keys.ts"
@@ -53,6 +54,7 @@ const startState = (scenario: Scenario, ops: ReadonlyArray<Op>) => {
 export const EduDesktop = ({ scenario, onCheck, onChange, initialOps = [], selfCheck = true }: Props) => {
   const [state, dispatch] = useReducer(reducer, null, () => startState(scenario, initialOps))
   const [taskOpen, setTaskOpen] = useState(true)
+  const { full, toggle: toggleFull } = useFullScreen()
 
   const reset = useCallback(() => dispatch({ type: "reset", fs: buildState(scenario.start, scenario.drives), withApp: scenario.app !== undefined }), [scenario])
 
@@ -166,7 +168,7 @@ export const EduDesktop = ({ scenario, onCheck, onChange, initialOps = [], selfC
   const dragCount = drag && state.selected.includes(drag.nodeId) ? state.selected.length : 1
 
   return (
-    <div ref={rootRef} className={`ed-root ${scenario.large ? "ed-large" : ""}`} onPointerDownCapture={onRootPointerDown}>
+    <div ref={rootRef} className={`ed-root${scenario.large ? " ed-large" : ""}${full ? " is-full" : ""}`} onPointerDownCapture={onRootPointerDown}>
       <div className="ed-desktop">
         <ItemGrid state={state} containerId={DESKTOP_ID} items={desktopItems} bind={bind} dispatch={dispatch} variant="desktop" />
         {state.windows.map((win, i) => {
@@ -239,6 +241,26 @@ export const EduDesktop = ({ scenario, onCheck, onChange, initialOps = [], selfC
             {APP_ICONS[scenario.app.kind]} {APPS[scenario.app.kind].title}
           </button>
         )}
+        <button
+          type="button"
+          className="ed-full"
+          aria-pressed={full}
+          aria-label={full ? "Вийти з повного екрана" : "На весь екран"}
+          title={full ? "Вийти з повного екрана" : "На весь екран"}
+          onClick={toggleFull}
+        >
+          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+            <path
+              d={full ? "M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5" : "M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"}
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+          <span className="ed-full-text">{full ? "Згорнути" : "На весь екран"}</span>
+        </button>
       </footer>
       {state.fileDialog && scenario.app && <SaveDialog key={state.fileDialog} mode={state.fileDialog} state={state} app={scenario.app} dispatch={dispatch} />}
       {state.confirm && <ConfirmDialog state={state} confirm={state.confirm} dispatch={dispatch} />}
