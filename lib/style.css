@@ -330,6 +330,59 @@
   cursor: pointer;
 }
 
+/* «На весь екран»: at the right end of the taskbar, always in view even when many windows fill it. */
+.ed-full {
+  position: sticky;
+  right: 0;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  margin-left: auto;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 6px;
+  background: var(--ed-accent);
+  color: #fff !important;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  box-shadow: 0 0 0 4px rgba(240, 244, 250, 0.96);
+}
+
+.ed-full:hover {
+  background: #1d4ed8;
+}
+
+.ed-full:focus-visible {
+  outline: 3px solid var(--ed-accent-soft);
+  outline-offset: 2px;
+}
+
+/* Full screen: the trainer covers the page; see fullscreen.ts. */
+.ed-root.is-full {
+  position: fixed;
+  z-index: 900;
+  inset: 0;
+  width: 100vw;
+  height: 100dvh;
+  min-height: 0;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  background: rgba(240, 244, 250, 0.96);
+}
+
+:root.ed-page-full,
+:root.ed-page-full body {
+  overflow: hidden;
+}
+
+@media (max-width: 520px) {
+  .ed-full-text {
+    display: none;
+  }
+}
+
 .ed-task-btn.is-active {
   border-color: var(--ed-accent);
   box-shadow: inset 0 -3px 0 var(--ed-accent);
