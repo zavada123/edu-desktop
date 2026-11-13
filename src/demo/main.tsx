@@ -11,6 +11,7 @@ if (!firstScenario) throw new Error("Немає жодного сценарію"
 const Demo = () => {
   const [id, setId] = useState(firstScenario.id)
   const scenario = scenarios.find((s) => s.id === id) ?? firstScenario
+  const after = scenarios[scenarios.indexOf(scenario) + 1]
   return (
     <div className="demo">
       <header className="demo-head">
@@ -27,7 +28,11 @@ const Demo = () => {
         </label>
       </header>
       <main className="demo-main">
-        <EduDesktop key={scenario.id} scenario={scenario} />
+        <EduDesktop
+          key={scenario.id}
+          scenario={scenario}
+          {...(after === undefined ? {} : { next: { title: after.title, go: () => setId(after.id) } })}
+        />
       </main>
     </div>
   )

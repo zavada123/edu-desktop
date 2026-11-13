@@ -9,4 +9,5 @@ export declare const PAGE_FULL_CLASS = "ed-page-full";
 export declare const useFullScreen: () => Readonly<{
     full: boolean;
     toggle: () => void;
+    handOver: () => void;
 }>;

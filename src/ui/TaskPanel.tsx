@@ -10,10 +10,18 @@ interface Props {
   readonly onReset: () => void
   readonly dispatch: (action: Action) => void
   readonly selfCheck: boolean
+  readonly next?: NextExercise | undefined
+  readonly onNext: () => void
+}
+
+/** The exercise the page opens after this one. */
+export interface NextExercise {
+  readonly title: string
+  readonly go: () => void
 }
 
 /** The task card: what to do, the "Перевірити" button and the result of each condition. */
-export const TaskPanel = ({ scenario, state, open, onToggle, onReset, dispatch, selfCheck }: Props) => {
+export const TaskPanel = ({ scenario, state, open, onToggle, onReset, dispatch, selfCheck, next, onNext }: Props) => {
   const results = state.results
   const solved = results !== null && allMet(results)
   // Not a landmark (aside, header): a page can show several trainers, and their landmarks would have the same name.
@@ -52,6 +60,12 @@ export const TaskPanel = ({ scenario, state, open, onToggle, onReset, dispatch, 
               </li>
             ))}
           </ul>
+          {solved && next !== undefined && (
+            <button type="button" className="ed-next" onClick={onNext}>
+              <span>Наступне завдання →</span>
+              <small>{next.title}</small>
+            </button>
+          )}
         </div>
       )}
     </div>
