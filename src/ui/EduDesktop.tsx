@@ -15,7 +15,7 @@ import { usePointer } from "./pointer.ts"
 import { activeWin, APP_ID, initialState, reducer, titleOf } from "./store.ts"
 import { AppContent, APPS, appTitle } from "./AppWindow.tsx"
 import { SaveDialog } from "./SaveDialog.tsx"
-import { TaskPanel } from "./TaskPanel.tsx"
+import { type NextExercise, TaskPanel } from "./TaskPanel.tsx"
 import { Window } from "./Window.tsx"
 import "./desktop.css"
 
@@ -41,6 +41,11 @@ interface Props {
   readonly initialOps?: ReadonlyArray<Op>
   /** `false` hides «Перевірити» when the page checks the answer itself. */
   readonly selfCheck?: boolean
+  /**
+   * The exercise after this one. After a passed check the task card shows «Наступне завдання»; the button calls
+   * `go`, and the page then shows the next scenario (with a new `key`). A trainer in full screen stays in it.
+   */
+  readonly next?: NextExercise
 }
 
 const startState = (scenario: Scenario, ops: ReadonlyArray<Op>) => {
@@ -51,10 +56,10 @@ const startState = (scenario: Scenario, ops: ReadonlyArray<Op>) => {
 }
 
 /** The whole trainer for one scenario. Can be embedded into any React page. */
-export const EduDesktop = ({ scenario, onCheck, onChange, initialOps = [], selfCheck = true }: Props) => {
+export const EduDesktop = ({ scenario, onCheck, onChange, initialOps = [], selfCheck = true, next }: Props) => {
   const [state, dispatch] = useReducer(reducer, null, () => startState(scenario, initialOps))
   const [taskOpen, setTaskOpen] = useState(true)
-  const { full, toggle: toggleFull } = useFullScreen()
+  const { full, toggle: toggleFull, handOver } = useFullScreen()
 
   const reset = useCallback(() => dispatch({ type: "reset", fs: buildState(scenario.start, scenario.drives), withApp: scenario.app !== undefined }), [scenario])
 
@@ -211,7 +216,20 @@ export const EduDesktop = ({ scenario, onCheck, onChange, initialOps = [], selfC
             📋 Завдання
           </button>
         )}
-        <TaskPanel scenario={scenario} state={state} open={taskOpen} onToggle={() => setTaskOpen(false)} onReset={reset} dispatch={dispatch} selfCheck={selfCheck} />
+        <TaskPanel
+          scenario={scenario}
+          state={state}
+          open={taskOpen}
+          onToggle={() => setTaskOpen(false)}
+          onReset={reset}
+          dispatch={dispatch}
+          selfCheck={selfCheck}
+          next={next}
+          onNext={() => {
+            handOver()
+            next?.go()
+          }}
+        />
       </div>
       <footer className="ed-taskbar">
         <button type="button" className="ed-start" onClick={() => setTaskOpen((v) => !v)} aria-label="Завдання">
