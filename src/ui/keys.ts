@@ -49,3 +49,29 @@ export const commandForKey = (state: DesktopState, press: KeyPress, folderId: No
       return null
   }
 }
+
+/** A key press with every modifier, to tell browser shortcuts apart. */
+export interface FullKeyPress extends KeyPress {
+  readonly shift: boolean
+  readonly alt: boolean
+}
+
+/** Ctrl+letter: print, save, find, history, downloads, view source, bookmarks, reload, open file, search. */
+const BROWSER_CTRL_CODES = new Set(["KeyD", "KeyE", "KeyF", "KeyG", "KeyH", "KeyJ", "KeyK", "KeyO", "KeyP", "KeyR", "KeyS", "KeyU"])
+/** Ctrl+Shift+letter: developer tools (I, J, C), clear history (Delete), bookmarks bar (B), bookmark manager (O). */
+const BROWSER_CTRL_SHIFT_CODES = new Set(["KeyI", "KeyJ", "KeyC", "KeyB", "KeyO", "Delete"])
+/** Alt+arrow and Alt+Home: back, forward and the home page. */
+const BROWSER_ALT_CODES = new Set(["ArrowLeft", "ArrowRight", "Home"])
+
+/**
+ * Browser shortcuts a child may hit by accident inside the trainer: F12 and the other F keys (F2 stays,
+ * the trainer renames with it), developer tools, print, save, reload, history and similar. The trainer's
+ * own keys (Ctrl+C/X/V/A, Delete, Enter…) are not in the list. Ctrl+W/T/N and Ctrl+Tab cannot be stopped by a page.
+ */
+export const isBrowserShortcut = (press: FullKeyPress): boolean => {
+  if (/^F\d{1,2}$/.test(press.key)) return press.key !== "F2"
+  if (press.ctrl && press.shift) return BROWSER_CTRL_SHIFT_CODES.has(press.code)
+  if (press.ctrl && !press.alt) return BROWSER_CTRL_CODES.has(press.code)
+  if (press.alt && !press.ctrl) return BROWSER_ALT_CODES.has(press.code)
+  return false
+}

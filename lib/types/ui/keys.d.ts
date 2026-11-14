@@ -16,3 +16,14 @@ export type KeyCommand = Action | {
  * Backspace and Escape. Returns `null` for any other key, so the browser keeps it.
  */
 export declare const commandForKey: (state: DesktopState, press: KeyPress, folderId: NodeId) => KeyCommand | null;
+/** A key press with every modifier, to tell browser shortcuts apart. */
+export interface FullKeyPress extends KeyPress {
+    readonly shift: boolean;
+    readonly alt: boolean;
+}
+/**
+ * Browser shortcuts a child may hit by accident inside the trainer: F12 and the other F keys (F2 stays,
+ * the trainer renames with it), developer tools, print, save, reload, history and similar. The trainer's
+ * own keys (Ctrl+C/X/V/A, Delete, Enter…) are not in the list. Ctrl+W/T/N and Ctrl+Tab cannot be stopped by a page.
+ */
+export declare const isBrowserShortcut: (press: FullKeyPress) => boolean;
