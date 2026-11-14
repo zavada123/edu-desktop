@@ -173,7 +173,13 @@ export const EduDesktop = ({ scenario, onCheck, onChange, initialOps = [], selfC
   const dragCount = drag && state.selected.includes(drag.nodeId) ? state.selected.length : 1
 
   return (
-    <div ref={rootRef} className={`ed-root${scenario.large ? " ed-large" : ""}${full ? " is-full" : ""}`} onPointerDownCapture={onRootPointerDown}>
+    <div
+      ref={rootRef}
+      className={`ed-root${scenario.large ? " ed-large" : ""}${full ? " is-full" : ""}`}
+      onPointerDownCapture={onRootPointerDown}
+      // The trainer has its own menus: the browser menu (Back, Reload, Inspect…) never opens over it.
+      onContextMenu={(e) => e.preventDefault()}
+    >
       <div className="ed-desktop">
         <ItemGrid state={state} containerId={DESKTOP_ID} items={desktopItems} bind={bind} dispatch={dispatch} variant="desktop" />
         {state.windows.map((win, i) => {
