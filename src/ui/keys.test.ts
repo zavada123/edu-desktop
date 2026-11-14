@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest"
 import { DESKTOP_ID, findByPath, type FsState } from "../core/fs.ts"
 import { buildState } from "../core/tree.ts"
-import { commandForKey, type KeyPress } from "./keys.ts"
+import { commandForKey, type FullKeyPress, isBrowserShortcut, type KeyPress } from "./keys.ts"
 import { type Action, type DesktopState, initialState, reducer } from "./store.ts"
 
 const idOf = (state: FsState, path: string): string => {
@@ -68,5 +68,48 @@ describe("Windows shortcuts", () => {
     expect(commandForKey(withMenu, plain("Escape"), DESKTOP_ID)).toEqual({ type: "menu", menu: null })
     expect(commandForKey(withCat, plain("Escape"), DESKTOP_ID)).toEqual({ type: "select", nodeId: null, additive: false })
     expect(commandForKey(withCat, plain("a"), DESKTOP_ID)).toBeNull()
+  })
+})
+
+describe("browser shortcuts", () => {
+  const press = (code: string, mods: Partial<FullKeyPress> = {}): FullKeyPress => ({
+    key: code.startsWith("Key") ? code.slice(3).toLowerCase() : code,
+    code,
+    ctrl: false,
+    shift: false,
+    alt: false,
+    ...mods
+  })
+
+  test("blocks F12, developer tools, print, save, reload and back", () => {
+    for (const p of [
+      press("F12"),
+      press("F5"),
+      press("KeyI", { ctrl: true, shift: true }),
+      press("KeyJ", { ctrl: true, shift: true }),
+      press("KeyC", { ctrl: true, shift: true }),
+      press("KeyU", { ctrl: true }),
+      press("KeyP", { ctrl: true }),
+      press("KeyS", { ctrl: true }),
+      press("KeyF", { ctrl: true }),
+      press("KeyH", { ctrl: true }),
+      press("KeyR", { ctrl: true }),
+      press("ArrowLeft", { alt: true })
+    ])
+      expect(isBrowserShortcut(p), `${p.code}`).toBe(true)
+  })
+
+  test("keeps the trainer's own keys and plain typing", () => {
+    for (const p of [
+      press("F2"),
+      press("KeyC", { ctrl: true }),
+      press("KeyV", { ctrl: true }),
+      press("KeyA", { ctrl: true }),
+      press("Delete"),
+      press("Enter"),
+      press("KeyS"),
+      press("ArrowLeft")
+    ])
+      expect(isBrowserShortcut(p), `${p.code}`).toBe(false)
   })
 })

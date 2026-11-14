@@ -10,7 +10,7 @@ import { Explorer } from "./Explorer.tsx"
 import { useFullScreen } from "./fullscreen.ts"
 import { iconKindOf, ItemIcon, NodeIcon } from "./icons.tsx"
 import { ItemGrid } from "./ItemGrid.tsx"
-import { commandForKey } from "./keys.ts"
+import { commandForKey, isBrowserShortcut } from "./keys.ts"
 import { usePointer } from "./pointer.ts"
 import { activeWin, APP_ID, initialState, reducer, titleOf } from "./store.ts"
 import { AppContent, APPS, appTitle } from "./AppWindow.tsx"
@@ -122,13 +122,16 @@ export const EduDesktop = ({ scenario, onCheck, onChange, initialOps = [], selfC
       if (!rootRef.current?.contains(e.target as Node)) focus.current = null
     }
     const onKeyDown = (e: KeyboardEvent) => {
-      if (focus.current === null || state.confirm !== null || state.fileDialog !== null || isTextField(e.target)) return
+      if (focus.current === null) return
+      const ctrl = e.ctrlKey || e.metaKey
+      if (isBrowserShortcut({ key: e.key, code: e.code, ctrl, shift: e.shiftKey, alt: e.altKey })) e.preventDefault()
+      if (state.confirm !== null || state.fileDialog !== null || isTextField(e.target)) return
       // A closed window hands the keys to the one on top, as in Windows.
       const focused = state.windows.find((w) => w.id === focus.current && !w.minimized)
       const win = focus.current === "desktop" ? undefined : (focused ?? activeWin(state))
       const folderId = win?.nodeId ?? DESKTOP_ID
       if (getNode(state.fs, folderId)?.kind !== "folder") return
-      const command = commandForKey(state, { key: e.key, code: e.code, ctrl: e.ctrlKey || e.metaKey }, folderId)
+      const command = commandForKey(state, { key: e.key, code: e.code, ctrl }, folderId)
       if (command === null) return
       e.preventDefault()
       if (command.type === "openItem") open(command.nodeId, win?.id)
