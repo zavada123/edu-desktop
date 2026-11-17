@@ -48,7 +48,8 @@ interface Props {
   readonly next?: NextExercise
   /**
    * Each new positive value opens the trainer in full screen, on mount too; `0` leaves it as the student set it.
-   * Browsers give their own full screen only during a click, so the page also calls `requestPageFullScreen` there.
+   * Browsers give their own full screen only during a click, so the page also calls
+   * `document.documentElement.requestFullscreen()` in the click that asks for it.
    */
   readonly openFullScreen?: number
 }

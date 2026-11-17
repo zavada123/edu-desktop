@@ -9,11 +9,8 @@ export const PAGE_FULL_CLASS = "ed-page-full"
  */
 let carryFull = false
 
-/**
- * The browser's own full screen for the page. Browsers allow it only right after a click or a key press, so a page
- * that opens the trainer from its own button calls this in the click handler, then passes `openFullScreen`.
- */
-export const requestPageFullScreen = (): void => {
+/** The browser's own full screen for the page. Browsers allow it only right after a click or a key press. */
+const requestPageFullScreen = (): void => {
   const page = document.documentElement
   if (typeof page.requestFullscreen === "function" && document.fullscreenEnabled && !document.fullscreenElement)
     void page.requestFullscreen().catch(() => undefined)
