@@ -46,6 +46,11 @@ interface Props {
    * `go`, and the page then shows the next scenario (with a new `key`). A trainer in full screen stays in it.
    */
   readonly next?: NextExercise
+  /**
+   * Each new positive value opens the trainer in full screen, on mount too; `0` leaves it as the student set it.
+   * Browsers give their own full screen only during a click, so the page also calls `requestPageFullScreen` there.
+   */
+  readonly openFullScreen?: number
 }
 
 const startState = (scenario: Scenario, ops: ReadonlyArray<Op>) => {
@@ -56,10 +61,10 @@ const startState = (scenario: Scenario, ops: ReadonlyArray<Op>) => {
 }
 
 /** The whole trainer for one scenario. Can be embedded into any React page. */
-export const EduDesktop = ({ scenario, onCheck, onChange, initialOps = [], selfCheck = true, next }: Props) => {
+export const EduDesktop = ({ scenario, onCheck, onChange, initialOps = [], selfCheck = true, next, openFullScreen = 0 }: Props) => {
   const [state, dispatch] = useReducer(reducer, null, () => startState(scenario, initialOps))
   const [taskOpen, setTaskOpen] = useState(true)
-  const { full, toggle: toggleFull, handOver } = useFullScreen()
+  const { full, toggle: toggleFull, handOver } = useFullScreen(openFullScreen)
 
   const reset = useCallback(() => dispatch({ type: "reset", fs: buildState(scenario.start, scenario.drives), withApp: scenario.app !== undefined }), [scenario])
 

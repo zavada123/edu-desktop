@@ -10,13 +10,23 @@ export const PAGE_FULL_CLASS = "ed-page-full"
 let carryFull = false
 
 /**
+ * The browser's own full screen for the page. Browsers allow it only right after a click or a key press, so a page
+ * that opens the trainer from its own button calls this in the click handler, then passes `openFullScreen`.
+ */
+export const requestPageFullScreen = (): void => {
+  const page = document.documentElement
+  if (typeof page.requestFullscreen === "function" && document.fullscreenEnabled && !document.fullscreenElement)
+    void page.requestFullscreen().catch(() => undefined)
+}
+
+/**
  * Full screen for the trainer. The trainer covers the page (a fixed layer), so it works on an iPhone too, and
  * where the browser can, the page goes to the browser's full screen as well. The button leaves it; so does Esc
  * where the browser has its own full screen. The trainer keeps Esc for itself otherwise (closing a menu,
  * cancelling a rename), so the same key does not also fold the trainer.
  */
-export const useFullScreen = (): Readonly<{ full: boolean; toggle: () => void; handOver: () => void }> => {
-  const [full, setFull] = useState(() => carryFull)
+export const useFullScreen = (request = 0): Readonly<{ full: boolean; toggle: () => void; handOver: () => void }> => {
+  const [full, setFull] = useState(() => carryFull || request > 0)
   useEffect(() => {
     carryFull = false
   }, [])
@@ -28,10 +38,14 @@ export const useFullScreen = (): Readonly<{ full: boolean; toggle: () => void; h
 
   const enter = useCallback(() => {
     setFull(true)
-    const page = document.documentElement
-    if (typeof page.requestFullscreen === "function" && document.fullscreenEnabled && !document.fullscreenElement)
-      void page.requestFullscreen().catch(() => undefined)
+    requestPageFullScreen()
   }, [])
+
+  // The page asks for full screen (a new positive `request`): the trainer covers the page, and the browser goes to
+  // its full screen too while the click that asked for it still allows that.
+  useEffect(() => {
+    if (request > 0) enter()
+  }, [request, enter])
 
   useEffect(() => {
     if (!full) return undefined

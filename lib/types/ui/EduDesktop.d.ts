@@ -21,7 +21,12 @@ interface Props {
      * `go`, and the page then shows the next scenario (with a new `key`). A trainer in full screen stays in it.
      */
     readonly next?: NextExercise;
+    /**
+     * Each new positive value opens the trainer in full screen, on mount too; `0` leaves it as the student set it.
+     * Browsers give their own full screen only during a click, so the page also calls `requestPageFullScreen` there.
+     */
+    readonly openFullScreen?: number;
 }
 /** The whole trainer for one scenario. Can be embedded into any React page. */
-export declare const EduDesktop: ({ scenario, onCheck, onChange, initialOps, selfCheck, next }: Props) => import("react").JSX.Element;
+export declare const EduDesktop: ({ scenario, onCheck, onChange, initialOps, selfCheck, next, openFullScreen }: Props) => import("react").JSX.Element;
 export {};
