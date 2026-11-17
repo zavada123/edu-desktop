@@ -18,6 +18,7 @@ import { SaveDialog } from "./SaveDialog.tsx"
 import { type NextExercise, TaskPanel } from "./TaskPanel.tsx"
 import { Window } from "./Window.tsx"
 import "./desktop.css"
+import "./rich-text.css"
 
 const MESSAGE_MS = 4_000
 
