@@ -487,15 +487,6 @@
   font-size: 1.15em;
 }
 
-.ed-grade {
-  padding: 2px 8px;
-  border-radius: 999px;
-  background: var(--ed-accent-soft);
-  color: var(--ed-accent);
-  font-weight: 600;
-  white-space: nowrap;
-}
-
 .ed-task-hide {
   border: 0;
   background: transparent;
