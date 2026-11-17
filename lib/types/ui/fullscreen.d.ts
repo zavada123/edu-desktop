@@ -6,7 +6,7 @@ export declare const PAGE_FULL_CLASS = "ed-page-full";
  * where the browser has its own full screen. The trainer keeps Esc for itself otherwise (closing a menu,
  * cancelling a rename), so the same key does not also fold the trainer.
  */
-export declare const useFullScreen: () => Readonly<{
+export declare const useFullScreen: (request?: number) => Readonly<{
     full: boolean;
     toggle: () => void;
     handOver: () => void;

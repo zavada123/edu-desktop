@@ -152,6 +152,7 @@ The package has two entry points.
 | `initialOps` | `readonly Op[]` | A previously saved log: the student continues where they left off. An invalid log is ignored |
 | `selfCheck` | `boolean` | `false` hides the Check button when your site grades the answer. Default `true` |
 | `next` | `{ title: string; go: () => void }` | The exercise after this one. After a passed check the task card shows a «Наступне завдання» button that calls `go`; show the next scenario with a new `key`. A trainer in full screen stays in full screen |
+| `openFullScreen` | `number` | Each new positive value opens the trainer in full screen, on mount too. Browsers give their own full screen only during a click, so also call `document.documentElement.requestFullscreen()` in that click. Default `0` |
 
 ### Goals
 
