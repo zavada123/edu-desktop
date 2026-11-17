@@ -1,6 +1,6 @@
 /** Name rules follow Windows so children learn the same limits they meet on a real computer. */
 export declare const MAX_NAME_LENGTH = 60;
-export declare const FORBIDDEN_CHARS: readonly ["\\", "/", ":", "*", "?", "\"", "<", ">", "|"];
+export declare const FORBIDDEN_CHARS: readonly ["\\", "/", ":", "*", "?", '"', "<", ">", "|"];
 /** Device names Windows reserves: a file or folder cannot be called `NUL` or `prn.txt`. */
 export declare const RESERVED_NAMES: readonly ["CON", "PRN", "AUX", "NUL", ...string[]];
 /** Returns an error message in Ukrainian, or `null` when the name is valid. */

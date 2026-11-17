@@ -1,5 +1,6 @@
 import { allMet } from "../core/goals.ts"
 import type { Scenario } from "../scenarios/types.ts"
+import { RichText } from "./RichText.tsx"
 import type { Action, DesktopState } from "./store.ts"
 
 interface Props {
@@ -35,7 +36,9 @@ export const TaskPanel = ({ scenario, state, open, onToggle, onReset, dispatch, 
       </div>
       <ol className="ed-task-steps">
         {scenario.task.map((step) => (
-          <li key={step}>{step}</li>
+          <li key={step}>
+            <RichText text={step} />
+          </li>
         ))}
       </ol>
       <div className="ed-task-actions">
@@ -54,8 +57,12 @@ export const TaskPanel = ({ scenario, state, open, onToggle, onReset, dispatch, 
           <ul>
             {results.map((r) => (
               <li key={r.text} className={r.ok ? "is-ok" : "is-bad"}>
-                <span aria-hidden="true">{r.ok ? "✅" : "❌"}</span> {r.text}
-                {!r.ok && <small>{r.hint}</small>}
+                <span aria-hidden="true">{r.ok ? "✅" : "❌"}</span> <RichText text={r.text} />
+                {!r.ok && (
+                  <small>
+                    <RichText text={r.hint} />
+                  </small>
+                )}
               </li>
             ))}
           </ul>

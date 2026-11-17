@@ -3,6 +3,7 @@
 .ed-root {
   --ed-accent: #2563eb;
   --ed-accent-soft: rgba(37, 99, 235, 0.16);
+  --rt-accent: #1d4ed8;
   --ed-text: #1b2230;
   --ed-muted: #5b6577;
   --ed-panel: #ffffff;
