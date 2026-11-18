@@ -1,6 +1,7 @@
 import * as fs from "../core/fs.ts";
 import { type FsState, type NodeId } from "../core/fs.ts";
 import { type Goal, type GoalResult } from "../core/goals.ts";
+import { type SortOrder } from "../core/listing.ts";
 import { type Op } from "../core/ops.ts";
 /** UI state of one desktop session. Pure reducer: every action returns a new object. */
 export interface Win {
@@ -13,7 +14,20 @@ export interface Win {
     /** Hidden on the taskbar («Згорнути»); its taskbar button brings it back. */
     readonly minimized: boolean;
     readonly history: ReadonlyArray<NodeId>;
+    /** Text in the search box: the window shows what matches in this folder and its subfolders. */
+    readonly search: string;
 }
+export type ViewMode = "icons" | "details";
+/** Explorer «Вигляд», the same for every window, as the student last set it. */
+export interface ViewSettings {
+    readonly mode: ViewMode;
+    readonly sort: SortOrder;
+    /** «Розширення імен файлів». */
+    readonly showExtensions: boolean;
+    /** «Приховані елементи»: off hides them, on shows them faded. */
+    readonly showHidden: boolean;
+}
+export declare const DEFAULT_VIEW: ViewSettings;
 export interface Clipboard {
     readonly mode: "cut" | "copy";
     readonly ids: ReadonlyArray<NodeId>;
@@ -66,6 +80,11 @@ export interface DesktopState {
     readonly properties: NodeId | null;
     /** When the student made each new item, for «Створено» in «Властивості». Start items have no entry. */
     readonly born: Readonly<Record<NodeId, number>>;
+    readonly view: ViewSettings;
+    /** The tree before the log: Ctrl+Z replays the log without its last action. */
+    readonly start: FsState;
+    /** Length of the log before each action the student made; Ctrl+Z goes back to the last one. */
+    readonly marks: ReadonlyArray<number>;
 }
 export type FileDialog = "save" | "open";
 /** Window id of the scenario's program (Paint, text editor, browser); it is not a file-system node. */
@@ -128,12 +147,16 @@ export type Action = {
     readonly type: "taskbar";
     readonly winId: number;
 }
-/** `range`: Shift+click selects everything from the first selected item to this one. */
+/**
+ * `range`: Shift+click selects everything from the first selected item to this one. `scope`: the items shown
+ * where the student clicked, in their order; the selection stays inside it (search results span folders).
+ */
  | {
     readonly type: "select";
     readonly nodeId: NodeId | null;
     readonly additive: boolean;
     readonly range?: boolean;
+    readonly scope?: ReadonlyArray<NodeId>;
 } | {
     readonly type: "selectAll";
     readonly containerId: NodeId;
@@ -213,10 +236,23 @@ export type Action = {
     readonly nodeId: NodeId;
     readonly readOnly: boolean;
     readonly hidden: boolean;
+} | {
+    readonly type: "view";
+    readonly change: Partial<ViewSettings>;
+} | {
+    readonly type: "search";
+    readonly winId: number;
+    readonly text: string;
+}
+/** Ctrl+Z: cancels the last change, as «Скасувати» in Windows Explorer. */
+ | {
+    readonly type: "undo";
 };
 export declare const initialState: (fsState: FsState, withApp?: boolean) => DesktopState;
 /** The window on top that is not minimised. */
 export declare const activeWin: (state: DesktopState) => Win | undefined;
+/** What a folder shows: hidden items only with «Приховані елементи», in the chosen order; or the search results. */
+export declare const listingOf: (state: DesktopState, folderId: NodeId, search?: string) => ReadonlyArray<fs.FsNode>;
 export declare const reducer: (state: DesktopState, action: Action) => DesktopState;
 /** Title shown in a window and on the taskbar. */
 export declare const titleOf: (state: DesktopState, nodeId: NodeId) => string;

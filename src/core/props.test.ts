@@ -75,8 +75,12 @@ describe("sizes", () => {
     expect(tryBuildState({ "a.txt": -1 }).ok).toBe(false)
   })
 
-  test("toTreeSpec still writes every file as null, the form task editors read", () => {
-    expect(toTreeSpec(start).desktop["Мої фото"]).toMatchObject({ "море.jpg": null, "ліс.jpg": null })
+  test("toTreeSpec keeps a size only where null would give another one", () => {
+    const made = ok(create(start, DESKTOP_ID, "file", "нотатки.txt"))
+    const spec = toTreeSpec(made)
+    expect(spec.desktop["нотатки.txt"]).toBe(0)
+    expect(spec.desktop["Мої фото"]).toMatchObject({ "море.jpg": null, "ліс.jpg": 1_843_200 })
+    expect(toTreeSpec(buildState(spec.desktop, spec.drives))).toEqual(spec)
   })
 })
 

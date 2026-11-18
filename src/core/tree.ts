@@ -91,13 +91,14 @@ export interface StartSpec {
 }
 
 /** One item in the compact form, or `undefined` for a shortcut whose object is gone or in the bin. */
-const specOf = (state: FsState, node: FsNode): TreeSpec | null | string | undefined => {
+const specOf = (state: FsState, node: FsNode): TreeSpec | null | number | string | undefined => {
   if (node.target !== undefined) {
     const target = shortcutTarget(state, node)
     return target === undefined ? undefined : pathOf(state, target.id).join("/")
   }
-  // Sizes are not kept yet: task editors that read this form know only `null` for a file.
-  return node.kind === "file" ? null : folderSpec(state, node.id)
+  if (node.kind === "folder") return folderSpec(state, node.id)
+  // The size is kept only where `null` would give another one: an empty new text document, for one.
+  return node.size === undefined || node.size === defaultSize(node.name) ? null : node.size
 }
 
 const folderSpec = (state: FsState, folderId: NodeId): TreeSpec =>

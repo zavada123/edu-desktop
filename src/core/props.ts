@@ -153,6 +153,13 @@ export const formatDate = (time: number): string => {
   return `${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()} р., ${d.getHours()}:${two(d.getMinutes())}:${two(d.getSeconds())}`
 }
 
+/** `18.11.2026 22:50`, as the «Дата змінення» column writes it. */
+export const formatShortDate = (time: number): string => {
+  const d = new Date(time)
+  const two = (n: number) => String(n).padStart(2, "0")
+  return `${two(d.getDate())}.${two(d.getMonth() + 1)}.${d.getFullYear()} ${two(d.getHours())}:${two(d.getMinutes())}`
+}
+
 const DAY = 24 * 60 * 60 * 1000
 /** Files from the start tree were made during the school year before the lesson. */
 const START_FROM = Date.UTC(2025, 8, 1, 6)

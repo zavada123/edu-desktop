@@ -124,6 +124,10 @@ const steps: { readonly [scenarioId: string]: ReadonlyArray<Step> } = {
     move("Мої фото/море.jpg", "Найбільше фото"),
     { do: "attributes", path: "Секрет", readOnly: false, hidden: true }
   ],
+  "g5-search-sort": [
+    ...["Документи/Школа/фото класу.jpg", "Документи/Відпочинок/море.jpg", "Документи/Відпочинок/гори.jpg", "Документи/кіт.jpg"].map((p) => copy(p, "Альбом")),
+    remove("Альбом/кіт.jpg")
+  ],
   "g5-drive-d-folder": [
     folder("D:", "Інформатика 5 клас"),
     folder("D:/Інформатика 5 клас", "Вправи"),

@@ -12,5 +12,14 @@ interface Props {
     readonly dispatch: (action: Action) => void;
     readonly variant: "desktop" | "explorer";
 }
+/**
+ * The name field of «Перейменувати». With «Розширення імен файлів» off it holds the name without the extension
+ * and keeps the extension, as Windows does.
+ */
+export declare const RenameInput: ({ node, showExtensions, dispatch }: {
+    readonly node: FsNode;
+    readonly showExtensions: boolean;
+    readonly dispatch: (a: Action) => void;
+}) => import("react").JSX.Element;
 export declare const ItemGrid: ({ state, containerId, items, bind, dispatch, variant }: Props) => import("react").JSX.Element;
 export {};

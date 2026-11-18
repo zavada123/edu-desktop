@@ -1,0 +1,231 @@
+/* Explorer: address with search, the «Вигляд» menu and the «Таблиця» view. */
+
+.ed-explorer {
+  position: relative;
+}
+
+.ed-addressbar {
+  display: flex;
+  align-items: stretch;
+  border-bottom: 1px solid var(--ed-line);
+  background: #fbfcfe;
+  flex-shrink: 0;
+}
+
+.ed-addressbar .ed-address {
+  flex: 1;
+  min-width: 0;
+  border-bottom: 0;
+}
+
+.ed-search {
+  display: flex;
+  align-items: center;
+  padding: 4px 8px 4px 0;
+  width: min(200px, 40%);
+}
+
+.ed-search input {
+  width: 100%;
+  height: 30px;
+  padding: 0 8px;
+  border: 1px solid var(--ed-line);
+  border-radius: 4px;
+  font: inherit;
+  background: #fff;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.ed-search input:focus {
+  outline: none;
+  border-color: var(--ed-accent);
+}
+
+.ed-viewmenu {
+  position: absolute;
+  top: 46px;
+  left: 8px;
+  z-index: 901;
+  min-width: 230px;
+  max-height: calc(100% - 54px);
+  overflow: auto;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  background: #fff;
+  border: 1px solid var(--ed-line);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.22);
+}
+
+.ed-viewmenu button {
+  width: 100%;
+  min-height: 34px;
+  padding: 0 10px 0 4px;
+  display: flex;
+  align-items: center;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ed-viewmenu button:hover {
+  background: #eef3fb;
+}
+
+.ed-mark {
+  width: 22px;
+  flex-shrink: 0;
+  text-align: center;
+  color: var(--ed-accent);
+}
+
+.ed-menu-title {
+  padding: 8px 10px 2px;
+  font-size: 0.85em;
+  font-weight: 600;
+  color: var(--ed-muted);
+}
+
+/* «Таблиця» */
+
+.ed-details {
+  --ed-cols: minmax(0, 2.4fr) minmax(0, 1.3fr) minmax(0, 1.4fr) minmax(0, 0.8fr);
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.ed-details.is-search {
+  --ed-cols: minmax(0, 1.5fr) minmax(8.5em, 1.1fr) minmax(0, 0.8fr) minmax(0, 0.7fr) minmax(0, 2.2fr);
+}
+
+.ed-details-head,
+.ed-row {
+  display: grid;
+  grid-template-columns: var(--ed-cols);
+  align-items: center;
+  column-gap: 8px;
+  padding: 0 8px;
+}
+
+.ed-details-head {
+  border-bottom: 1px solid var(--ed-line);
+  flex-shrink: 0;
+}
+
+.ed-details-head button,
+.ed-details-head span {
+  min-height: 30px;
+  padding: 0 4px;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  color: var(--ed-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+}
+
+.ed-details-head button:hover {
+  background: #eef3fb;
+  color: var(--ed-text);
+}
+
+.ed-details-head .ed-col-size,
+.ed-row .ed-col-size {
+  justify-content: flex-end;
+  text-align: right;
+}
+
+.ed-details-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 4px 0;
+}
+
+.ed-row {
+  min-height: 30px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  margin: 0 4px;
+  cursor: default;
+  touch-action: pan-y;
+}
+
+.ed-row:hover {
+  background: #f1f5fb;
+}
+
+.ed-row.is-selected {
+  background: var(--ed-accent-soft);
+  border-color: rgba(37, 99, 235, 0.35);
+}
+
+.ed-row.is-cut,
+.ed-row.is-hidden {
+  opacity: 0.5;
+}
+
+.ed-row > span {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ed-row .ed-col-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ed-row .ed-col-name svg {
+  flex-shrink: 0;
+}
+
+.ed-row .ed-label {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+}
+
+.ed-row .ed-rename {
+  text-align: left;
+}
+
+.ed-row .ed-col-modified,
+.ed-row .ed-col-type,
+.ed-row .ed-col-where {
+  color: var(--ed-muted);
+}
+
+@media (max-width: 560px) {
+  .ed-details {
+    --ed-cols: minmax(0, 1fr) auto;
+  }
+
+  .ed-details.is-search {
+    --ed-cols: minmax(0, 1fr) auto;
+  }
+
+  .ed-details .ed-col-modified,
+  .ed-details .ed-col-type,
+  .ed-details .ed-col-where {
+    display: none !important;
+  }
+
+  .ed-search {
+    width: 42%;
+  }
+}

@@ -573,7 +573,8 @@ const fileProperties: Scenario = {
     "Зроби «вірш.txt» лише для читання: у рядку **Атрибути** познач **Лише читання** і натисни **OK**.",
     "У папці «Мої фото» чотири фото. Відкрий властивості кожного й знайди найбільше за розміром.",
     "Створи на робочому столі папку «Найбільше фото» і перемісти в неї найбільше фото.",
-    "Сховай папку «Секрет»: у її властивостях познач **Прихований**."
+    "Сховай папку «Секрет»: у її властивостях познач **Прихований**. Папка зникне з робочого стола.",
+    "Щоб знову побачити приховані об'єкти, у вікні папки вибери **Вигляд** → **Приховані елементи**."
   ],
   start: {
     "вірш.txt": 1_286,
@@ -591,6 +592,40 @@ const fileProperties: Scenario = {
     },
     { type: "count", folder: "Найбільше фото", equals: 1, text: "У папці «Найбільше фото» лише одне фото", hint: "Перемісти в цю папку лише одне, найбільше фото." },
     { type: "attribute", path: "Секрет", hidden: true, text: "Папка «Секрет» прихована" }
+  ]
+}
+
+const searchSort: Scenario = {
+  id: "g5-search-sort",
+  grade: 5,
+  title: "Пошук і сортування файлів",
+  task: [
+    "Відкрий папку «Документи». У полі **Пошук** угорі праворуч введи `*.jpg`: знайдуться всі фото в папці та її підпапках.",
+    "Виділи всі знайдені фото (Ctrl+A) і скопіюй їх у папку «Альбом» на робочому столі.",
+    "Відкрий «Альбом», вибери **Вигляд** → **Таблиця** і клацни заголовок **Розмір**, щоб упорядкувати фото за розміром.",
+    "Найменше фото видали з «Альбому» в кошик."
+  ],
+  start: {
+    Документи: {
+      Школа: { "реферат.docx": null, "фото класу.jpg": 3_106_552 },
+      Відпочинок: { "море.jpg": 2_904_118, "гори.jpg": 1_377_002, "квитки.pdf": null },
+      "лист.txt": null,
+      "кіт.jpg": 812_340
+    },
+    Альбом: {}
+  },
+  goals: [
+    { type: "exists", path: "Альбом/фото класу.jpg", kind: "file", text: "У «Альбомі» є «фото класу.jpg»", hint: "Шукай `*.jpg` саме в папці «Документи»: пошук заходить і в підпапки." },
+    { type: "exists", path: "Альбом/море.jpg", kind: "file", text: "У «Альбомі» є «море.jpg»" },
+    { type: "exists", path: "Альбом/гори.jpg", kind: "file", text: "У «Альбомі» є «гори.jpg»" },
+    {
+      type: "absent",
+      path: "Альбом/кіт.jpg",
+      text: "Найменше фото видалено з «Альбому»",
+      hint: "У вигляді **Таблиця** клацни **Розмір**: найменше фото буде першим. Видали саме його."
+    },
+    { type: "count", folder: "Альбом", equals: 3, text: "В «Альбомі» три фото" },
+    { type: "exists", path: "Документи/Відпочинок/море.jpg", kind: "file", text: "Фото лишилися і в «Документах»", hint: "Фото треба **скопіювати**, а не перемістити." }
   ]
 }
 
@@ -621,4 +656,4 @@ const magicNames: Scenario = {
   ]
 }
 
-export const scenarios: ReadonlyArray<Scenario> = [animals, sortPictures, saveDrawing, openFile, grandma, filePath, contextMenu, magicNames, saveText, saveImage, trip, exercise6, fileTypes, fileProperties, driveFolder, shortcuts, practical1, zipFolder, extractZip, fileJunk]
+export const scenarios: ReadonlyArray<Scenario> = [animals, sortPictures, saveDrawing, openFile, grandma, filePath, contextMenu, magicNames, saveText, saveImage, trip, exercise6, fileTypes, fileProperties, searchSort, driveFolder, shortcuts, practical1, zipFolder, extractZip, fileJunk]

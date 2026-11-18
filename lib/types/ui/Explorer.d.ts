@@ -1,5 +1,5 @@
 import { ItemGrid } from "./ItemGrid.tsx";
-import type { Action, DesktopState, Win } from "./store.ts";
+import { type Action, type DesktopState, type Win } from "./store.ts";
 type Bind = Parameters<typeof ItemGrid>[0]["bind"];
 interface Props {
     readonly state: DesktopState;
