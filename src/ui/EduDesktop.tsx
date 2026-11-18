@@ -14,11 +14,13 @@ import { commandForKey, isBrowserShortcut } from "./keys.ts"
 import { usePointer } from "./pointer.ts"
 import { activeWin, APP_ID, initialState, reducer, titleOf } from "./store.ts"
 import { AppContent, APPS, appTitle } from "./AppWindow.tsx"
+import { PropertiesDialog } from "./PropertiesDialog.tsx"
 import { SaveDialog } from "./SaveDialog.tsx"
 import { type NextExercise, TaskPanel } from "./TaskPanel.tsx"
 import { Window } from "./Window.tsx"
 import "./desktop.css"
 import "./rich-text.css"
+import "./properties.css"
 
 const MESSAGE_MS = 4_000
 
@@ -132,13 +134,13 @@ export const EduDesktop = ({ scenario, onCheck, onChange, initialOps = [], selfC
       if (focus.current === null) return
       const ctrl = e.ctrlKey || e.metaKey
       if (isBrowserShortcut({ key: e.key, code: e.code, ctrl, shift: e.shiftKey, alt: e.altKey })) e.preventDefault()
-      if (state.confirm !== null || state.fileDialog !== null || isTextField(e.target)) return
+      if (state.confirm !== null || state.fileDialog !== null || state.properties !== null || isTextField(e.target)) return
       // A closed window hands the keys to the one on top, as in Windows.
       const focused = state.windows.find((w) => w.id === focus.current && !w.minimized)
       const win = focus.current === "desktop" ? undefined : (focused ?? activeWin(state))
       const folderId = win?.nodeId ?? DESKTOP_ID
       if (getNode(state.fs, folderId)?.kind !== "folder") return
-      const command = commandForKey(state, { key: e.key, code: e.code, ctrl }, folderId)
+      const command = commandForKey(state, { key: e.key, code: e.code, ctrl, alt: e.altKey }, folderId)
       if (command === null) return
       e.preventDefault()
       if (command.type === "openItem") open(command.nodeId, win?.id)
@@ -297,6 +299,7 @@ export const EduDesktop = ({ scenario, onCheck, onChange, initialOps = [], selfC
         </button>
       </footer>
       {state.fileDialog && scenario.app && <SaveDialog key={state.fileDialog} mode={state.fileDialog} state={state} app={scenario.app} dispatch={dispatch} />}
+      {state.properties && <PropertiesDialog key={state.properties} state={state} nodeId={state.properties} dispatch={dispatch} />}
       {state.confirm && <ConfirmDialog state={state} confirm={state.confirm} dispatch={dispatch} />}
       {state.menu && <ContextMenu state={state} menu={state.menu} dispatch={dispatch} onOpen={(id) => open(id)} />}
       {state.message && (

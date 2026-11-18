@@ -62,6 +62,10 @@ export interface DesktopState {
     readonly savedAs: NodeId | null;
     /** Every file-system change since the start, in order; `replay` builds the same tree from it. */
     readonly ops: ReadonlyArray<Op>;
+    /** The item whose «Властивості» window is open. */
+    readonly properties: NodeId | null;
+    /** When the student made each new item, for «Створено» in «Властивості». Start items have no entry. */
+    readonly born: Readonly<Record<NodeId, number>>;
 }
 export type FileDialog = "save" | "open";
 /** Window id of the scenario's program (Paint, text editor, browser); it is not a file-system node. */
@@ -197,6 +201,18 @@ export type Action = {
     readonly message: string;
 } | {
     readonly type: "dismiss";
+}
+/** «Властивості» (or Alt+Enter); `null` closes the window. */
+ | {
+    readonly type: "properties";
+    readonly nodeId: NodeId | null;
+}
+/** «Застосувати» or «OK» in «Властивості». */
+ | {
+    readonly type: "attributes";
+    readonly nodeId: NodeId;
+    readonly readOnly: boolean;
+    readonly hidden: boolean;
 };
 export declare const initialState: (fsState: FsState, withApp?: boolean) => DesktopState;
 /** The window on top that is not minimised. */

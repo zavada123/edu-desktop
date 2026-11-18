@@ -16,6 +16,7 @@ type Step =
   | { readonly do: "compress"; readonly paths: ReadonlyArray<string>; readonly name: string }
   | { readonly do: "extract" | "open" | "remove"; readonly path: string }
   | { readonly do: "restore"; readonly name: string }
+  | { readonly do: "attributes"; readonly path: string; readonly readOnly: boolean; readonly hidden: boolean }
 
 const folder = (inPath: string, name: string): Step => ({ do: "folder", in: inPath, name })
 const move = (path: string, to: string): Step => ({ do: "move", path, to })
@@ -50,6 +51,8 @@ const toOp = (state: FsState, step: Step): Op => {
       return { op: "openFile", id: idAt(state, step.path) }
     case "remove":
       return { op: "remove", id: idAt(state, step.path) }
+    case "attributes":
+      return { op: "attributes", id: idAt(state, step.path), readOnly: step.readOnly, hidden: step.hidden }
     case "restore": {
       const node = childrenOf(state, BIN_ID).find((n) => sameName(n.name, step.name))
       if (!node) throw new Error(`Помилка в розв'язку: у кошику немає «${step.name}»`)
@@ -114,6 +117,12 @@ const steps: { readonly [scenarioId: string]: ReadonlyArray<Step> } = {
       Музика: ["пісня.mp3", "дзвоник.wav"],
       Різне: ["оцінки.xlsx", "презентація.pptx"]
     }).flatMap(([name, files]) => [folder("Мої файли", name), ...files.map((f) => move(`Завантаження/${f}`, `Мої файли/${name}`))])
+  ],
+  "g5-file-properties": [
+    { do: "attributes", path: "вірш.txt", readOnly: true, hidden: false },
+    folder("", "Найбільше фото"),
+    move("Мої фото/море.jpg", "Найбільше фото"),
+    { do: "attributes", path: "Секрет", readOnly: false, hidden: true }
   ],
   "g5-drive-d-folder": [
     folder("D:", "Інформатика 5 клас"),

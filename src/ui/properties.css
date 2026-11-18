@@ -1,0 +1,175 @@
+/* «Властивості»: the «Загальні» tab of Windows. */
+
+.ed-dialog.ed-props {
+  width: min(420px, 100%);
+  max-height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.ed-props-x {
+  width: 44px;
+  height: 36px;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.ed-props-x:hover {
+  background: #e81123;
+  color: #fff !important;
+}
+
+.ed-props-tabs {
+  display: flex;
+  padding: 8px 12px 0;
+  border-bottom: 1px solid var(--ed-line);
+}
+
+.ed-props-tabs span {
+  padding: 6px 14px;
+  border: 1px solid var(--ed-line);
+  border-bottom: 0;
+  border-radius: 6px 6px 0 0;
+  margin-bottom: -1px;
+  background: var(--ed-panel);
+}
+
+.ed-props-body {
+  padding: 12px 16px 14px;
+  overflow: auto;
+}
+
+.ed-props-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.ed-props-name {
+  flex: 1;
+  min-width: 0;
+  padding: 5px 8px;
+  border: 1px solid var(--ed-line);
+  border-radius: 4px;
+  overflow-wrap: anywhere;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.ed-props-rule {
+  margin: 10px 0;
+  border: 0;
+  border-top: 1px solid var(--ed-line);
+}
+
+.ed-props-list {
+  margin: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.ed-props-row {
+  display: grid;
+  grid-template-columns: 8.2em 1fr;
+  gap: 8px;
+}
+
+.ed-props-row dt {
+  color: var(--ed-muted);
+}
+
+.ed-props-row dd {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.ed-props-attrs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 18px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.ed-props-attrs legend {
+  float: left;
+  width: 8.2em;
+  padding: 0;
+  margin-right: 8px;
+  color: var(--ed-muted);
+}
+
+.ed-props-attrs label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  cursor: pointer;
+}
+
+.ed-props-attrs input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--ed-accent);
+}
+
+.ed-props-disk {
+  height: 18px;
+  margin-top: 12px;
+  border-radius: 4px;
+  background: #d9dee6;
+  overflow: hidden;
+}
+
+.ed-props-disk span,
+.ed-props-used {
+  display: block;
+  height: 100%;
+  background: var(--ed-accent);
+}
+
+.ed-props-legend {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 8px 0 0;
+  color: var(--ed-muted);
+}
+
+.ed-props-used,
+.ed-props-free {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+}
+
+.ed-props-free {
+  margin-left: 10px;
+  background: #d9dee6;
+}
+
+.ed-dialog-actions button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* Hidden items stay visible but faded, as when Windows shows hidden items. */
+.ed-item.is-hidden .ed-label,
+.ed-item.is-hidden svg {
+  opacity: 0.5;
+}
+
+@media (max-width: 480px) {
+  .ed-props-attrs legend {
+    float: none;
+    width: 100%;
+  }
+}

@@ -5,6 +5,8 @@ export interface KeyPress {
     readonly key: string;
     readonly code: string;
     readonly ctrl: boolean;
+    /** Alt+Enter opens «Властивості». */
+    readonly alt?: boolean;
 }
 /** What a key does: a store action, or opening an item (the component decides where it opens). */
 export type KeyCommand = Action | {
@@ -12,7 +14,7 @@ export type KeyCommand = Action | {
     readonly nodeId: NodeId;
 };
 /**
- * Windows shortcuts for the folder the student works in (`folderId`): Ctrl+C/X/V/A, Delete, F2, Enter,
+ * Windows shortcuts for the folder the student works in (`folderId`): Ctrl+C/X/V/A, Delete, F2, Enter, Alt+Enter,
  * Backspace and Escape. Returns `null` for any other key, so the browser keeps it.
  */
 export declare const commandForKey: (state: DesktopState, press: KeyPress, folderId: NodeId) => KeyCommand | null;

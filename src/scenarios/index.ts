@@ -564,6 +564,36 @@ const openFile: Scenario = {
   ]
 }
 
+const fileProperties: Scenario = {
+  id: "g5-file-properties",
+  grade: 5,
+  title: "Властивості файлів і папок",
+  task: [
+    "Відкрий властивості файлу «вірш.txt»: права кнопка миші → **Властивості**. Подивись його тип, розташування і розмір.",
+    "Зроби «вірш.txt» лише для читання: у рядку **Атрибути** познач **Лише читання** і натисни **OK**.",
+    "У папці «Мої фото» чотири фото. Відкрий властивості кожного й знайди найбільше за розміром.",
+    "Створи на робочому столі папку «Найбільше фото» і перемісти в неї найбільше фото.",
+    "Сховай папку «Секрет»: у її властивостях познач **Прихований**."
+  ],
+  start: {
+    "вірш.txt": 1_286,
+    "Мої фото": { "ліс.jpg": 1_843_200, "море.jpg": 3_512_017, "гори.jpg": 2_097_152, "сад.jpg": 3_498_112 },
+    Секрет: { "щоденник.txt": 4_210 }
+  },
+  goals: [
+    { type: "attribute", path: "вірш.txt", readOnly: true, text: "«вірш.txt» лише для читання" },
+    {
+      type: "exists",
+      path: "Найбільше фото/море.jpg",
+      kind: "file",
+      text: "У папці «Найбільше фото» лежить найбільше фото",
+      hint: "Порівняй рядок **Розмір** у властивостях кожного фото. «3,33 МБ» менше, ніж «3,34 МБ»."
+    },
+    { type: "count", folder: "Найбільше фото", equals: 1, text: "У папці «Найбільше фото» лише одне фото", hint: "Перемісти в цю папку лише одне, найбільше фото." },
+    { type: "attribute", path: "Секрет", hidden: true, text: "Папка «Секрет» прихована" }
+  ]
+}
+
 const magicNames: Scenario = {
   id: "g4-magic-names",
   grade: 4,
@@ -591,4 +621,4 @@ const magicNames: Scenario = {
   ]
 }
 
-export const scenarios: ReadonlyArray<Scenario> = [animals, sortPictures, saveDrawing, openFile, grandma, filePath, contextMenu, magicNames, saveText, saveImage, trip, exercise6, fileTypes, driveFolder, shortcuts, practical1, zipFolder, extractZip, fileJunk]
+export const scenarios: ReadonlyArray<Scenario> = [animals, sortPictures, saveDrawing, openFile, grandma, filePath, contextMenu, magicNames, saveText, saveImage, trip, exercise6, fileTypes, fileProperties, driveFolder, shortcuts, practical1, zipFolder, extractZip, fileJunk]

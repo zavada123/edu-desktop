@@ -15,14 +15,16 @@ import {
   rename,
   shortcutTarget
 } from "./fs.ts"
+import { defaultSize } from "./sizes.ts"
 
 /**
  * Compact description of a starting desktop for scenario authors.
- * An object is a folder, `null` is a file, a string is a shortcut to that path:
- * `{ "Мої фото": { "ліс.jpg": null }, "вірш.txt": null, "Ігри – ярлик": "D:/Ігри" }`.
+ * An object is a folder, `null` is a file, a number is a file of that many bytes, a string is a shortcut to that path:
+ * `{ "Мої фото": { "ліс.jpg": null, "море.jpg": 3_512_000 }, "вірш.txt": null, "Ігри – ярлик": "D:/Ігри" }`.
+ * A file given as `null` gets a believable size for its type, the same every time.
  * A folder whose name ends with `.zip` is a compressed ZIP folder: `{ "фото.zip": { "ліс.jpg": null } }`.
  */
-export type TreeSpec = { readonly [name: string]: TreeSpec | null | string }
+export type TreeSpec = { readonly [name: string]: TreeSpec | null | number | string }
 
 interface PendingShortcut {
   readonly parentId: NodeId
@@ -41,9 +43,12 @@ const addSpec = (start: Built, parentId: NodeId, spec: TreeSpec): Built =>
   Object.entries(spec).reduce((acc: Built, [name, child]): Built => {
     if (!acc.ok) return acc
     if (typeof child === "string") return { ...acc, pending: [...acc.pending, { parentId, name, target: child }] }
-    const result = create(acc.state, parentId, child === null ? "file" : "folder", name)
+    const isFile = child === null || typeof child === "number"
+    const size = typeof child === "number" ? child : defaultSize(name)
+    if (typeof child === "number" && !(Number.isFinite(child) && child >= 0)) return { ok: false, error: inScenario(name, "розмір файлу має бути числом байтів, не меншим за 0") }
+    const result = create(acc.state, parentId, isFile ? "file" : "folder", name, size)
     if (!result.ok) return { ok: false, error: inScenario(name, result.error) }
-    if (child === null) return { ...acc, state: result.state }
+    if (isFile) return { ...acc, state: result.state }
     const folder = name.toLocaleLowerCase("uk").endsWith(".zip") ? markZip(result.state, result.id) : result.state
     return addSpec({ ...acc, state: folder }, result.id, child)
   }, start)
@@ -91,6 +96,7 @@ const specOf = (state: FsState, node: FsNode): TreeSpec | null | string | undefi
     const target = shortcutTarget(state, node)
     return target === undefined ? undefined : pathOf(state, target.id).join("/")
   }
+  // Sizes are not kept yet: task editors that read this form know only `null` for a file.
   return node.kind === "file" ? null : folderSpec(state, node.id)
 }
 

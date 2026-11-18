@@ -36,11 +36,12 @@ The student-facing interface is in Ukrainian. It was built for [EduProstir](http
 - **A familiar desktop:** icons, Explorer windows, a taskbar, the Recycle Bin and "This PC" with drives C: and D:.
 - **Windows-style address bar:** click the empty space to see the full path (`D:\Мої уроки\Інформатика`), type a path and press Enter.
 - **All the file operations from the curriculum:** New → Folder / Text document, rename, copy, cut, paste, delete, restore from the bin, delete permanently, empty the bin, with a "Move to Recycle Bin?" confirmation.
+- **Properties window:** right-click → «Властивості» (or Alt+Enter) shows the type, the program, the location as a Windows path (`C:\Users\Учень\Desktop`, `D:\Мої уроки`), the size and size on disk, the contents of a folder, the dates and the «Лише читання» / «Прихований» attributes. Drives show used, free and total space.
 - **Shortcuts:** "Create shortcut" and "Send to → Desktop (create shortcut)"; a shortcut opens its target, and deleting it leaves the target alone.
 - **ZIP folders:** "Send to → Compressed (zipped) folder", open an archive like a folder, "Extract all…".
 - **Apps with Save As and Open dialogs:** Paint (you can draw), a text editor and a browser with "Save image as…".
 - **Real Windows interactions:** right-drag menu (copy here / move here / create shortcuts), slow second click to rename, Ctrl/Shift multi-select, drag to a folder or the bin, minimise / maximise / close.
-- **Keyboard shortcuts:** Ctrl+C, Ctrl+X, Ctrl+V, Ctrl+A, Delete, F2, Enter, Backspace, Escape. They work with the Ukrainian keyboard layout too.
+- **Keyboard shortcuts:** Ctrl+C, Ctrl+X, Ctrl+V, Ctrl+A, Delete, F2, Enter, Backspace, Escape, Alt+Enter. They work with the Ukrainian keyboard layout too.
 - **Windows naming rules:** forbidden characters, reserved names (NUL, PRN, CON…), "Нова папка (2)", "море – копія.jpg".
 - **Works on phones and tablets:** long press opens the context menu, a "Select several" button replaces Ctrl+click.
 - **Large mode** for grades 3–4.
@@ -73,8 +74,9 @@ const animals: Scenario = {
   title: "Папка для тварин",
   large: true,
   task: ["Створи на робочому столі папку «Тварини».", "Перенеси в неї малюнки кота і собаки."],
-  // An object is a folder, null is a file, a string is a shortcut to that path.
-  // A folder whose name ends in .zip is a compressed folder.
+  // An object is a folder, null is a file, a number is a file of that many bytes,
+  // a string is a shortcut to that path. A folder whose name ends in .zip is a compressed folder.
+  // A file given as null gets a believable size for its type, the same every time.
   start: { "кіт.png": null, "собака.png": null, Документи: {} },
   // Optional: drive contents under "This PC". Goals refer to them as "D:/Мої уроки/...".
   drives: { "D:": { "Мої уроки": {} } },
@@ -166,6 +168,7 @@ Every goal accepts its own `text` and a `hint` shown when it is not met.
 | `shortcut` | The folder holds a shortcut (any name) that opens the given object |
 | `opened` | The file was opened in an app with File → Open |
 | `restored` | The object was deleted to the bin and restored |
+| `attribute` | The object has (`true`) or has not (`false`) the attributes `readOnly` and `hidden` set in «Властивості» |
 | `count` | The folder holds exactly N objects (optionally only folders, only files, or files with an extension) |
 
 ## Development

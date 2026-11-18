@@ -16,6 +16,8 @@ export type Goal =
   /** In `folder` lies a shortcut (any name) that opens the object at `target`. */
   | { readonly type: "shortcut"; readonly folder: string; readonly target: string; readonly text?: string; readonly hint?: string }
   | { readonly type: "restored"; readonly path: string; readonly text?: string; readonly hint?: string }
+  /** The item at `path` has (`true`) or has not (`false`) the attributes given; one left out is not checked. */
+  | { readonly type: "attribute"; readonly path: string; readonly readOnly?: boolean; readonly hidden?: boolean; readonly text?: string; readonly hint?: string }
   | {
       readonly type: "count"
       readonly folder: string
@@ -76,6 +78,13 @@ export const describeGoal = (goal: Goal): string => {
       return `Файл «${lastPart(goal.path).name}» відкрито в програмі`
     case "restored":
       return `«${lastPart(goal.path).name}» видалено в кошик і відновлено`
+    case "attribute": {
+      const wanted = [
+        goal.readOnly === undefined ? "" : `${goal.readOnly ? "" : "не "}лише для читання`,
+        goal.hidden === undefined ? "" : `${goal.hidden ? "" : "не "}прихований`
+      ].filter((w) => w !== "")
+      return `«${lastPart(goal.path).name}»: ${wanted.join(", ")}`
+    }
     case "count": {
       const n = goal.equals
       const files = plural(n, "файл", "файли", "файлів")
@@ -106,6 +115,8 @@ const defaultHint = (goal: Goal): string => {
       return "У програмі вибери **Файл** → **Відкрити**, знайди потрібні диск і папку, вибери файл і натисни **Відкрити**."
     case "restored":
       return "Видали об'єкт у кошик, потім відкрий **Кошик** і вибери **Відновити**."
+    case "attribute":
+      return "Клацни правою кнопкою на об'єкті → **Властивості**. Унизу в **Атрибути** постав або зніми позначку і натисни **OK**."
     case "count":
       return "Порахуй, скільки об'єктів лежить у папці зараз, і порівняй із завданням."
   }
@@ -132,6 +143,11 @@ const isMet = (state: FsState, goal: Goal): boolean => {
       return findByPath(state, goal.path)?.opened === true
     case "restored":
       return findByPath(state, goal.path)?.restored === true
+    case "attribute": {
+      const node = findByPath(state, goal.path)
+      if (!node) return false
+      return (goal.readOnly === undefined || (node.readOnly === true) === goal.readOnly) && (goal.hidden === undefined || (node.hidden === true) === goal.hidden)
+    }
     case "count": {
       const folder = findByPath(state, goal.folder)
       if (!folder || folder.kind !== "folder") return false

@@ -18,6 +18,8 @@ export type Op =
   | { readonly op: "compress"; readonly ids: ReadonlyArray<NodeId>; readonly name: string }
   | { readonly op: "extract"; readonly id: NodeId }
   | { readonly op: "openFile"; readonly id: NodeId }
+  /** «Властивості → Атрибути»: both checkboxes as the student left them. */
+  | { readonly op: "attributes"; readonly id: NodeId; readonly readOnly: boolean; readonly hidden: boolean }
   | { readonly op: "remove"; readonly id: NodeId }
   | { readonly op: "restore"; readonly id: NodeId }
   | { readonly op: "deleteForever"; readonly id: NodeId }
@@ -51,6 +53,8 @@ export const applyOp = (state: FsState, op: Op): FsResult => {
       return fs.extractAll(state, op.id)
     case "openFile":
       return fs.markOpened(state, op.id)
+    case "attributes":
+      return fs.setAttributes(state, op.id, { readOnly: op.readOnly, hidden: op.hidden })
     case "remove":
       return fs.remove(state, op.id)
     case "restore":

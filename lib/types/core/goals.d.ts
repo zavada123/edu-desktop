@@ -42,6 +42,15 @@ export type Goal =
     readonly path: string;
     readonly text?: string;
     readonly hint?: string;
+}
+/** The item at `path` has (`true`) or has not (`false`) the attributes given; one left out is not checked. */
+ | {
+    readonly type: "attribute";
+    readonly path: string;
+    readonly readOnly?: boolean;
+    readonly hidden?: boolean;
+    readonly text?: string;
+    readonly hint?: string;
 } | {
     readonly type: "count";
     readonly folder: string;
