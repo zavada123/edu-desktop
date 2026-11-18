@@ -42,6 +42,13 @@ export type Op = {
 } | {
     readonly op: "openFile";
     readonly id: NodeId;
+}
+/** «Властивості → Атрибути»: both checkboxes as the student left them. */
+ | {
+    readonly op: "attributes";
+    readonly id: NodeId;
+    readonly readOnly: boolean;
+    readonly hidden: boolean;
 } | {
     readonly op: "remove";
     readonly id: NodeId;

@@ -61,6 +61,10 @@ export interface DesktopState {
   readonly savedAs: NodeId | null
   /** Every file-system change since the start, in order; `replay` builds the same tree from it. */
   readonly ops: ReadonlyArray<Op>
+  /** The item whose «Властивості» window is open. */
+  readonly properties: NodeId | null
+  /** When the student made each new item, for «Створено» in «Властивості». Start items have no entry. */
+  readonly born: Readonly<Record<NodeId, number>>
 }
 
 export type FileDialog = "save" | "open"
@@ -113,6 +117,10 @@ export type Action =
   | { readonly type: "check"; readonly goals: ReadonlyArray<Goal> }
   | { readonly type: "notify"; readonly message: string }
   | { readonly type: "dismiss" }
+  /** «Властивості» (or Alt+Enter); `null` closes the window. */
+  | { readonly type: "properties"; readonly nodeId: NodeId | null }
+  /** «Застосувати» or «OK» in «Властивості». */
+  | { readonly type: "attributes"; readonly nodeId: NodeId; readonly readOnly: boolean; readonly hidden: boolean }
 
 export const initialState = (fsState: FsState, withApp = false): DesktopState => {
   const empty = blankState(fsState)
@@ -133,7 +141,9 @@ const blankState = (fsState: FsState): DesktopState => ({
   results: null,
   fileDialog: null,
   savedAs: null,
-  ops: []
+  ops: [],
+  properties: null,
+  born: {}
 })
 
 const CASCADE_STEP = 28
@@ -143,11 +153,20 @@ const CASCADE_SIZE = 6
 const closeMissing = (state: DesktopState): DesktopState => ({
   ...state,
   windows: state.windows.filter((w) => w.nodeId === APP_ID || fs.getNode(state.fs, w.nodeId) !== undefined),
-  selected: state.selected.filter((id) => fs.getNode(state.fs, id) !== undefined)
+  selected: state.selected.filter((id) => fs.getNode(state.fs, id) !== undefined),
+  properties: state.properties !== null && fs.getNode(state.fs, state.properties) === undefined ? null : state.properties
 })
 
+/** Notes the time of every item that was not there before; a copy is a new item with its own «Створено». */
+const stampNew = (born: DesktopState["born"], before: FsState, after: FsState): DesktopState["born"] => {
+  const fresh = Object.keys(after.nodes).filter((id) => before.nodes[id] === undefined)
+  if (fresh.length === 0) return born
+  const now = Date.now()
+  return { ...born, ...Object.fromEntries(fresh.map((id) => [id, now])) }
+}
+
 const withFs = (state: DesktopState, fsState: FsState): DesktopState =>
-  closeMissing({ ...state, fs: fsState, menu: null, message: null, results: null })
+  closeMissing({ ...state, fs: fsState, born: stampNew(state.born, state.fs, fsState), menu: null, message: null, results: null })
 
 /** Makes one file-system change: on success keeps the new tree and records the change, on failure shows the error. */
 const run = (state: DesktopState, op: Op, after?: (s: DesktopState, id: NodeId) => DesktopState): DesktopState => {
@@ -364,6 +383,13 @@ export const reducer = (state: DesktopState, action: Action): DesktopState => {
       return { ...state, message: action.message, menu: null }
     case "dismiss":
       return { ...state, message: null }
+    case "properties":
+      return { ...state, properties: action.nodeId === null || fs.getNode(state.fs, action.nodeId) ? action.nodeId : null, menu: null, renaming: null }
+    case "attributes": {
+      const node = fs.getNode(state.fs, action.nodeId)
+      if (!node || ((node.readOnly === true) === action.readOnly && (node.hidden === true) === action.hidden)) return state
+      return run(state, { op: "attributes", id: action.nodeId, readOnly: action.readOnly, hidden: action.hidden })
+    }
   }
 }
 

@@ -27,7 +27,8 @@ const itemMenu = (state: DesktopState, targetId: NodeId): ReadonlyArray<MenuItem
   if (targetId === THIS_PC_ID || isDrive(targetId)) {
     return [
       { label: "Відкрити", command: "open" },
-      { label: "Створити ярлик", command: { type: "shortcut", ids: [targetId], targetId: DESKTOP_ID } }
+      { label: "Створити ярлик", command: { type: "shortcut", ids: [targetId], targetId: DESKTOP_ID } },
+      ...(isDrive(targetId) ? [{ label: "Властивості", command: { type: "properties", nodeId: targetId } as const }] : [])
     ]
   }
   if (isSystem(targetId)) return [{ label: "Відкрити", command: "open" }]
@@ -51,7 +52,8 @@ const itemMenu = (state: DesktopState, targetId: NodeId): ReadonlyArray<MenuItem
       : []),
     { label: "Створити ярлик", command: { type: "shortcut", ids, targetId: null } },
     { label: "Видалити", command: { type: "askDelete", ids } },
-    ...(single ? [{ label: "Перейменувати", command: { type: "startRename", nodeId: targetId } as const }] : [])
+    ...(single ? [{ label: "Перейменувати", command: { type: "startRename", nodeId: targetId } as const }] : []),
+    ...(single ? [{ label: "Властивості", command: { type: "properties", nodeId: targetId } as const }] : [])
   ]
 }
 

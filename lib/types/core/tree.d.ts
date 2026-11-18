@@ -1,12 +1,13 @@
 import { type FsState } from "./fs.ts";
 /**
  * Compact description of a starting desktop for scenario authors.
- * An object is a folder, `null` is a file, a string is a shortcut to that path:
- * `{ "Мої фото": { "ліс.jpg": null }, "вірш.txt": null, "Ігри – ярлик": "D:/Ігри" }`.
+ * An object is a folder, `null` is a file, a number is a file of that many bytes, a string is a shortcut to that path:
+ * `{ "Мої фото": { "ліс.jpg": null, "море.jpg": 3_512_000 }, "вірш.txt": null, "Ігри – ярлик": "D:/Ігри" }`.
+ * A file given as `null` gets a believable size for its type, the same every time.
  * A folder whose name ends with `.zip` is a compressed ZIP folder: `{ "фото.zip": { "ліс.jpg": null } }`.
  */
 export type TreeSpec = {
-    readonly [name: string]: TreeSpec | null | string;
+    readonly [name: string]: TreeSpec | null | number | string;
 };
 export type BuildResult = {
     readonly ok: true;

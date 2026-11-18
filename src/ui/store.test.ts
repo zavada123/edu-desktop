@@ -145,3 +145,27 @@ describe("«Відкрити» and the drop menu", () => {
     expect(childrenOf(state.fs, idOf(start.fs, "Тварини")).map((n) => n.name)).toEqual(["кіт.png – ярлик", "собака.png – ярлик"])
   })
 })
+
+describe("«Властивості»", () => {
+  test("opens for an item, applies the attributes once and logs the change", () => {
+    const opened = run(start, { type: "properties", nodeId: cat })
+    expect(opened.properties).toBe(cat)
+    const applied = run(opened, { type: "attributes", nodeId: cat, readOnly: true, hidden: false }, { type: "attributes", nodeId: cat, readOnly: true, hidden: false })
+    expect(applied.fs.nodes[cat]?.readOnly).toBe(true)
+    expect(applied.ops).toEqual([{ op: "attributes", id: cat, readOnly: true, hidden: false }])
+    expect(run(applied, { type: "properties", nodeId: null }).properties).toBeNull()
+  })
+
+  test("closes when its item is deleted for good", () => {
+    const state = run(start, { type: "askDelete", ids: [cat] }, { type: "confirm" }, { type: "properties", nodeId: cat }, { type: "askEmptyBin" }, { type: "confirm" })
+    expect(state.properties).toBeNull()
+  })
+
+  test("items the student makes get their own time", () => {
+    const before = Date.now()
+    const state = run(start, { type: "create", containerId: DESKTOP_ID, kind: "folder" })
+    const made = idOf(state.fs, "Нова папка")
+    expect(state.born[made]).toBeGreaterThanOrEqual(before)
+    expect(state.born[cat]).toBeUndefined()
+  })
+})

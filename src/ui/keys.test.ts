@@ -113,3 +113,10 @@ describe("browser shortcuts", () => {
       expect(isBrowserShortcut(p), `${p.code}`).toBe(false)
   })
 })
+describe("Alt+Enter", () => {
+  test("opens «Властивості» of the selected item; plain Enter still opens it", () => {
+    const selected = run(start, { type: "select", nodeId: cat, additive: false })
+    expect(commandForKey(selected, { key: "Enter", code: "Enter", ctrl: false, alt: true }, DESKTOP_ID)).toEqual({ type: "properties", nodeId: cat })
+    expect(commandForKey(selected, plain("Enter"), DESKTOP_ID)).toEqual({ type: "openItem", nodeId: cat })
+  })
+})

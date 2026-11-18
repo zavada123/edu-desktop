@@ -51,7 +51,7 @@ export const ItemGrid = ({ state, containerId, items, bind, dispatch, variant }:
     <div className={`ed-grid ed-grid--${variant}`} data-drop-id={containerId} {...bind(null, containerId)}>
       {items.map((node) => {
         const isFolderTarget = node.kind === "folder" && node.id !== THIS_PC_ID && (node.id === BIN_ID || !isInBin(state.fs, node.id))
-        const classes = ["ed-item", state.selected.includes(node.id) ? "is-selected" : "", cutIds.includes(node.id) ? "is-cut" : ""]
+        const classes = ["ed-item", state.selected.includes(node.id) ? "is-selected" : "", cutIds.includes(node.id) ? "is-cut" : "", node.hidden ? "is-hidden" : ""]
         return (
           <div
             key={node.id}

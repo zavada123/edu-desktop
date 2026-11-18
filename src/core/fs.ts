@@ -1,4 +1,5 @@
 import { freeName, sameName, splitExtension, validateName } from "./names.ts"
+import { defaultSize } from "./sizes.ts"
 
 /**
  * Virtual file system of the trainer. The state is a flat map of nodes; every operation
@@ -24,6 +25,12 @@ export interface FsNode {
   readonly zip?: true
   /** Opened in a program through «Файл → Відкрити»; a goal can ask for it (3 клас, с. 54). */
   readonly opened?: true
+  /** Size of a file in bytes; folders add up what lies in them. A new text document is empty: 0 bytes. */
+  readonly size?: number
+  /** Attribute «Лише читання» from the «Властивості» window. Files only. */
+  readonly readOnly?: true
+  /** Attribute «Прихований»: the item is shown faded, as Windows shows hidden items. */
+  readonly hidden?: true
 }
 
 export interface FsState {
@@ -36,6 +43,8 @@ export const BIN_ID: NodeId = "bin"
 /** «Цей ПК»: holds the drives. Drives are folders named `C:` and `D:`. */
 export const THIS_PC_ID: NodeId = "this-pc"
 export const DRIVE_LETTERS = ["C", "D"] as const
+/** Where Windows keeps the desktop of the student's account; «Властивості» shows it as the location. */
+export const DESKTOP_PATH = "C:\\Users\\Учень\\Desktop"
 export type DriveLetter = (typeof DRIVE_LETTERS)[number]
 export const driveId = (letter: DriveLetter): NodeId => `drive-${letter}`
 
@@ -131,7 +140,13 @@ export const resolveAddress = (state: FsState, text: string): NodeId | null => {
   if (sameName(trimmed, "Цей ПК")) return THIS_PC_ID
   if (sameName(trimmed, "Кошик")) return BIN_ID
   const parts = trimmed.split(/[/\\]/).filter((p) => p.trim().length > 0)
-  const relative = parts[0] !== undefined && sameName(parts[0], "Робочий стіл") ? parts.slice(1) : parts
+  const desktopParts = DESKTOP_PATH.split("\\")
+  const inUserDesktop = desktopParts.every((part, i) => parts[i] !== undefined && sameName(parts[i], part))
+  const relative = inUserDesktop
+    ? parts.slice(desktopParts.length)
+    : parts[0] !== undefined && sameName(parts[0], "Робочий стіл")
+      ? parts.slice(1)
+      : parts
   const node = findByPath(state, relative.join("/"))
   return node && node.kind === "folder" ? node.id : null
 }
@@ -151,14 +166,16 @@ const checkTarget = (state: FsState, targetId: NodeId): string | null => {
   return null
 }
 
-export const create = (state: FsState, parentId: NodeId, kind: NodeKind, wantedName: string): FsResult => {
+/** `size` is for files only; a new file without it is empty, like «Створити → Текстовий документ». */
+export const create = (state: FsState, parentId: NodeId, kind: NodeKind, wantedName: string, size = 0): FsResult => {
   const targetError = checkTarget(state, parentId) ?? (parentId === BIN_ID ? "У кошику не можна створювати" : null)
   if (targetError) return fail(targetError)
   const nameError = validateName(wantedName)
   if (nameError) return fail(nameError)
   const name = freeName(wantedName.trim(), (n) => findChild(state, parentId, n) !== undefined)
   const id = `n${state.nextId}`
-  return { ok: true, id, state: put({ ...state, nextId: state.nextId + 1 }, { id, name, kind, parentId }) }
+  const node: FsNode = kind === "file" ? { id, name, kind, parentId, size: Math.max(0, Math.round(size)) } : { id, name, kind, parentId }
+  return { ok: true, id, state: put({ ...state, nextId: state.nextId + 1 }, node) }
 }
 
 /**
@@ -171,7 +188,7 @@ export const saveFile = (state: FsState, folderId: NodeId, name: string, ext: st
   if (trimmed.length === 0) return fail("Введи ім'я файлу")
   if (folderId === BIN_ID) return fail("У кошик не можна зберігати файли")
   if (findChild(state, folderId, fileName)) return fail(`Файл «${fileName}» уже є в цій папці. Введи інше ім'я.`)
-  return create(state, folderId, "file", fileName)
+  return create(state, folderId, "file", fileName, defaultSize(fileName))
 }
 
 export const rename = (state: FsState, id: NodeId, newName: string): FsResult => {
@@ -206,7 +223,10 @@ const copyTree = (state: FsState, sourceId: NodeId, parentId: NodeId, name: stri
   const id = `n${state.nextId}`
   const target = source.target === undefined ? {} : { target: source.target }
   const zip = source.zip ? { zip: true as const } : {}
-  const withCopy = put({ ...state, nextId: state.nextId + 1 }, { id, name, kind: source.kind, parentId, ...target, ...zip })
+  // A copy keeps the size and the attributes, as in Windows.
+  const size = source.size === undefined ? {} : { size: source.size }
+  const attributes = { ...(source.readOnly ? { readOnly: true as const } : {}), ...(source.hidden ? { hidden: true as const } : {}) }
+  const withCopy = put({ ...state, nextId: state.nextId + 1 }, { id, name, kind: source.kind, parentId, ...target, ...zip, ...size, ...attributes })
   const children = childrenOf(state, sourceId)
   const finalState = children.reduce((acc, child) => copyTree(acc, child.id, id, child.name).state, withCopy)
   return { state: finalState, id }
@@ -268,6 +288,22 @@ export const markOpened = (state: FsState, id: NodeId): FsResult => {
   const node = getNode(state, id)
   if (!node || node.kind !== "file" || isInBin(state, id)) return fail("Цей файл не можна відкрити")
   return { ok: true, id, state: put(state, { ...node, opened: true }) }
+}
+
+export interface Attributes {
+  readonly readOnly: boolean
+  readonly hidden: boolean
+}
+
+/** «Властивості → Атрибути»: «Лише читання» (files only) and «Прихований». */
+export const setAttributes = (state: FsState, id: NodeId, { readOnly, hidden }: Attributes): FsResult => {
+  const node = getNode(state, id)
+  if (!node || isSystem(id)) return fail("Атрибути цього об'єкта змінити не можна")
+  if (isInBin(state, id)) return fail("Спершу віднови об'єкт з кошика")
+  if (readOnly && node.kind === "folder") return fail("Атрибут «Лише читання» тут ставлять лише файлам")
+  const { readOnly: _r, hidden: _h, ...rest } = node
+  const next: FsNode = { ...rest, ...(readOnly ? { readOnly: true as const } : {}), ...(hidden ? { hidden: true as const } : {}) }
+  return { ok: true, id, state: put(state, next) }
 }
 
 /** Turns a folder into a ZIP folder; scenario trees use it for `name.zip` entries. */

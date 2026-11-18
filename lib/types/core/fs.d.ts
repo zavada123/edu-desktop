@@ -20,6 +20,12 @@ export interface FsNode {
     readonly zip?: true;
     /** Opened in a program through «Файл → Відкрити»; a goal can ask for it (3 клас, с. 54). */
     readonly opened?: true;
+    /** Size of a file in bytes; folders add up what lies in them. A new text document is empty: 0 bytes. */
+    readonly size?: number;
+    /** Attribute «Лише читання» from the «Властивості» window. Files only. */
+    readonly readOnly?: true;
+    /** Attribute «Прихований»: the item is shown faded, as Windows shows hidden items. */
+    readonly hidden?: true;
 }
 export interface FsState {
     readonly nodes: Readonly<Record<NodeId, FsNode>>;
@@ -30,6 +36,8 @@ export declare const BIN_ID: NodeId;
 /** «Цей ПК»: holds the drives. Drives are folders named `C:` and `D:`. */
 export declare const THIS_PC_ID: NodeId;
 export declare const DRIVE_LETTERS: readonly ["C", "D"];
+/** Where Windows keeps the desktop of the student's account; «Властивості» shows it as the location. */
+export declare const DESKTOP_PATH = "C:\\Users\\\u0423\u0447\u0435\u043D\u044C\\Desktop";
 export type DriveLetter = (typeof DRIVE_LETTERS)[number];
 export declare const driveId: (letter: DriveLetter) => NodeId;
 export type FsResult = {
@@ -65,7 +73,8 @@ export declare const windowsPath: (state: FsState, id: NodeId) => string;
 export declare const findByPath: (state: FsState, path: string) => FsNode | undefined;
 /** Folder typed into the address bar: `D:\\Мої уроки`, `Робочий стіл\\Мої фото`, `Цей ПК`. `null` if there is no such folder. */
 export declare const resolveAddress: (state: FsState, text: string) => NodeId | null;
-export declare const create: (state: FsState, parentId: NodeId, kind: NodeKind, wantedName: string) => FsResult;
+/** `size` is for files only; a new file without it is empty, like «Створити → Текстовий документ». */
+export declare const create: (state: FsState, parentId: NodeId, kind: NodeKind, wantedName: string, size?: number) => FsResult;
 /**
  * «Зберегти як»: a new file `name` in `folderId`. The extension is added when the student did not type it.
  * Unlike «Створити», an existing name is an error, not «(2)»: the student chooses another name.
@@ -88,6 +97,12 @@ export declare const createShortcut: (state: FsState, id: NodeId, parentId: Node
 export declare const compress: (state: FsState, ids: ReadonlyArray<NodeId>, name: string) => FsResult;
 /** «Файл → Відкрити» in a program. */
 export declare const markOpened: (state: FsState, id: NodeId) => FsResult;
+export interface Attributes {
+    readonly readOnly: boolean;
+    readonly hidden: boolean;
+}
+/** «Властивості → Атрибути»: «Лише читання» (files only) and «Прихований». */
+export declare const setAttributes: (state: FsState, id: NodeId, { readOnly, hidden }: Attributes) => FsResult;
 /** Turns a folder into a ZIP folder; scenario trees use it for `name.zip` entries. */
 export declare const markZip: (state: FsState, id: NodeId) => FsState;
 /** «Видобути все…»: a folder named like the archive (without `.zip`) next to it, with everything from it. */
