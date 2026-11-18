@@ -229,3 +229,28 @@
     width: 42%;
   }
 }
+
+/* Keys next to a menu command, as Windows shows them. */
+.ed-menu button {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.ed-menu-keys {
+  margin-left: auto;
+  font: inherit;
+  font-size: 0.85em;
+  color: var(--ed-muted);
+  white-space: nowrap;
+}
+
+.ed-menu-arrow {
+  margin-left: auto;
+}
+
+@media (pointer: coarse) {
+  .ed-menu-keys {
+    display: none;
+  }
+}

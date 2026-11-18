@@ -128,8 +128,8 @@ const Toolbar = ({ state, win, dispatch, onView }: Omit<Props, "bind"> & { reado
   const selected = state.selected.filter((id) => shown.has(id))
   const none = selected.length === 0
   const canUp = getNode(state.fs, folderId)?.parentId != null
-  const button = (label: string, action: Action, disabled = false) => (
-    <button type="button" disabled={disabled} onClick={() => dispatch(action)}>
+  const button = (label: string, action: Action, disabled = false, keys?: string) => (
+    <button type="button" disabled={disabled} title={keys === undefined ? undefined : `${label} (${keys})`} onClick={() => dispatch(action)}>
       {label}
     </button>
   )
@@ -150,11 +150,11 @@ const Toolbar = ({ state, win, dispatch, onView }: Omit<Props, "bind"> & { reado
       {!readOnly && (
         <>
           {button("＋ Папка", { type: "create", containerId: folderId, kind: "folder" })}
-          {button("Перейменувати", { type: "startRename", nodeId: selected[0] ?? "" }, selected.length !== 1)}
-          {button("Копіювати", { type: "clip", mode: "copy", ids: selected }, none)}
-          {button("Вирізати", { type: "clip", mode: "cut", ids: selected }, none)}
-          {button("Вставити", { type: "paste", targetId: folderId }, state.clipboard === null)}
-          {button("Видалити", { type: "askDelete", ids: selected }, none)}
+          {button("Перейменувати", { type: "startRename", nodeId: selected[0] ?? "" }, selected.length !== 1, "F2")}
+          {button("Копіювати", { type: "clip", mode: "copy", ids: selected }, none, "Ctrl+C")}
+          {button("Вирізати", { type: "clip", mode: "cut", ids: selected }, none, "Ctrl+X")}
+          {button("Вставити", { type: "paste", targetId: folderId }, state.clipboard === null, "Ctrl+V")}
+          {button("Видалити", { type: "askDelete", ids: selected }, none, "Delete")}
         </>
       )}
       {isBin && (

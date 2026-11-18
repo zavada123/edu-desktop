@@ -9,6 +9,8 @@ interface MenuItem {
   readonly label: string
   readonly command: Command
   readonly disabled?: boolean
+  /** Keys that do the same, shown on the right as in Windows: `Ctrl+C`. */
+  readonly keys?: string
 }
 
 /** The clicked item and, if it is selected, every other selected item too. */
@@ -20,7 +22,7 @@ const itemMenu = (state: DesktopState, targetId: NodeId): ReadonlyArray<MenuItem
   if (!node) return []
   if (targetId === BIN_ID) {
     return [
-      { label: "Відкрити", command: "open" },
+      { label: "Відкрити", command: "open", keys: "Enter" },
       { label: "Очистити кошик", command: { type: "askEmptyBin" }, disabled: childrenOf(state.fs, BIN_ID).length === 0 }
     ]
   }
@@ -28,7 +30,7 @@ const itemMenu = (state: DesktopState, targetId: NodeId): ReadonlyArray<MenuItem
     return [
       { label: "Відкрити", command: "open" },
       { label: "Створити ярлик", command: { type: "shortcut", ids: [targetId], targetId: DESKTOP_ID } },
-      ...(isDrive(targetId) ? [{ label: "Властивості", command: { type: "properties", nodeId: targetId } as const }] : [])
+      ...(isDrive(targetId) ? [{ label: "Властивості", command: { type: "properties", nodeId: targetId } as const, keys: "Alt+Enter" }] : [])
     ]
   }
   if (isSystem(targetId)) return [{ label: "Відкрити", command: "open" }]
@@ -36,24 +38,24 @@ const itemMenu = (state: DesktopState, targetId: NodeId): ReadonlyArray<MenuItem
   if (node.parentId === BIN_ID) {
     return [
       { label: "Відновити", command: { type: "restore", ids } },
-      { label: "Видалити назавжди", command: { type: "askDelete", ids } }
+      { label: "Видалити назавжди", command: { type: "askDelete", ids }, keys: "Delete" }
     ]
   }
   if (isInBin(state.fs, targetId)) return []
   const single = ids.length === 1
   return [
-    ...(single ? [{ label: "Відкрити", command: "open" } as const] : []),
+    ...(single ? [{ label: "Відкрити", command: "open", keys: "Enter" } as const] : []),
     ...(single && node.zip ? [{ label: "Видобути все…", command: { type: "extract", nodeId: targetId } as const }] : []),
     { label: "Надіслати", command: "send" },
-    { label: "Вирізати", command: { type: "clip", mode: "cut", ids } },
-    { label: "Копіювати", command: { type: "clip", mode: "copy", ids } },
+    { label: "Вирізати", command: { type: "clip", mode: "cut", ids }, keys: "Ctrl+X" },
+    { label: "Копіювати", command: { type: "clip", mode: "copy", ids }, keys: "Ctrl+C" },
     ...(single && node.kind === "folder"
       ? [{ label: "Вставити сюди", command: { type: "paste", targetId } as const, disabled: state.clipboard === null }]
       : []),
     { label: "Створити ярлик", command: { type: "shortcut", ids, targetId: null } },
-    { label: "Видалити", command: { type: "askDelete", ids } },
-    ...(single ? [{ label: "Перейменувати", command: { type: "startRename", nodeId: targetId } as const }] : []),
-    ...(single ? [{ label: "Властивості", command: { type: "properties", nodeId: targetId } as const }] : [])
+    { label: "Видалити", command: { type: "askDelete", ids }, keys: "Delete" },
+    ...(single ? [{ label: "Перейменувати", command: { type: "startRename", nodeId: targetId } as const, keys: "F2" }] : []),
+    ...(single ? [{ label: "Властивості", command: { type: "properties", nodeId: targetId } as const, keys: "Alt+Enter" }] : [])
   ]
 }
 
@@ -64,7 +66,9 @@ const spaceMenu = (state: DesktopState, containerId: NodeId): ReadonlyArray<Menu
   if (containerId === THIS_PC_ID) return []
   return [
     { label: "Створити", command: "create" },
-    { label: "Вставити", command: { type: "paste", targetId: containerId }, disabled: state.clipboard === null }
+    { label: "Вставити", command: { type: "paste", targetId: containerId }, disabled: state.clipboard === null, keys: "Ctrl+V" },
+    { label: "Скасувати", command: { type: "undo" }, disabled: state.marks.length === 0, keys: "Ctrl+Z" },
+    { label: "Виділити все", command: { type: "selectAll", containerId }, keys: "Ctrl+A" }
   ]
 }
 
@@ -141,6 +145,7 @@ export const ContextMenu = ({ state, menu, dispatch, onOpen }: Props) => {
           <li key={item.label} role="none">
             <button type="button" role="menuitem" disabled={item.disabled} onClick={() => run(item.command)}>
               {item.label}
+              {item.keys !== undefined && <kbd className="ed-menu-keys">{item.keys}</kbd>}
               {(item.command === "create" || item.command === "send") && <span className="ed-menu-arrow">›</span>}
             </button>
           </li>
