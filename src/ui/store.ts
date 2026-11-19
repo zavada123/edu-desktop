@@ -4,6 +4,7 @@ import { checkGoals, type Goal, type GoalResult } from "../core/goals.ts"
 import { splitExtension } from "../core/names.ts"
 import { searchIn, type SortOrder, sortItems } from "../core/listing.ts"
 import { applyOp, type Op, replay } from "../core/ops.ts"
+import { MIN_WIN_HEIGHT, MIN_WIN_WIDTH } from "./resize.ts"
 
 /** UI state of one desktop session. Pure reducer: every action returns a new object. */
 
@@ -13,6 +14,9 @@ export interface Win {
   readonly nodeId: NodeId
   readonly x: number
   readonly y: number
+  /** Set once the student resizes the window by its edges; until then the window has its default size. */
+  readonly width?: number
+  readonly height?: number
   readonly maximized: boolean
   /** Hidden on the taskbar («Згорнути»); its taskbar button brings it back. */
   readonly minimized: boolean
@@ -110,6 +114,8 @@ export type Action =
   | { readonly type: "close"; readonly winId: number }
   | { readonly type: "focus"; readonly winId: number }
   | { readonly type: "moveWin"; readonly winId: number; readonly x: number; readonly y: number }
+  /** Dragging an edge or a corner: the new position and size, already kept inside the desktop. */
+  | { readonly type: "resizeWin"; readonly winId: number; readonly x: number; readonly y: number; readonly width: number; readonly height: number }
   | { readonly type: "toggleMax"; readonly winId: number }
   | { readonly type: "minimize"; readonly winId: number }
   /** Taskbar button: as in Windows, it minimises the active window and brings back any other. */
@@ -377,6 +383,18 @@ export const reducer = (state: DesktopState, action: Action): DesktopState => {
       return focusWin(state, action.winId)
     case "moveWin":
       return updateWin(state, action.winId, (w) => ({ ...w, x: Math.max(0, action.x), y: Math.max(0, action.y) }))
+    case "resizeWin":
+      return updateWin(state, action.winId, (w) =>
+        w.maximized
+          ? w
+          : {
+              ...w,
+              x: Math.max(0, action.x),
+              y: Math.max(0, action.y),
+              width: Math.max(MIN_WIN_WIDTH, action.width),
+              height: Math.max(MIN_WIN_HEIGHT, action.height)
+            }
+      )
     case "toggleMax":
       return updateWin(state, action.winId, (w) => ({ ...w, maximized: !w.maximized }))
     case "minimize":
