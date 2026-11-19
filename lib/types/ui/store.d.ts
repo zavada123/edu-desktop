@@ -10,6 +10,9 @@ export interface Win {
     readonly nodeId: NodeId;
     readonly x: number;
     readonly y: number;
+    /** Set once the student resizes the window by its edges; until then the window has its default size. */
+    readonly width?: number;
+    readonly height?: number;
     readonly maximized: boolean;
     /** Hidden on the taskbar («Згорнути»); its taskbar button brings it back. */
     readonly minimized: boolean;
@@ -135,6 +138,15 @@ export type Action = {
     readonly winId: number;
     readonly x: number;
     readonly y: number;
+}
+/** Dragging an edge or a corner: the new position and size, already kept inside the desktop. */
+ | {
+    readonly type: "resizeWin";
+    readonly winId: number;
+    readonly x: number;
+    readonly y: number;
+    readonly width: number;
+    readonly height: number;
 } | {
     readonly type: "toggleMax";
     readonly winId: number;
