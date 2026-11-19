@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest"
 import { BIN_ID, childrenOf, DESKTOP_ID, driveId, findByPath, type FsState } from "../core/fs.ts"
 import { buildState } from "../core/tree.ts"
-import { type Action, APP_ID, type DesktopState, initialState, reducer } from "./store.ts"
+import { type Action, APP_ID, type DesktopState, initialState, listingOf, reducer } from "./store.ts"
 
 const idOf = (state: FsState, path: string): string => {
   const node = findByPath(state, path)
@@ -167,5 +167,59 @@ describe("«Властивості»", () => {
     const made = idOf(state.fs, "Нова папка")
     expect(state.born[made]).toBeGreaterThanOrEqual(before)
     expect(state.born[cat]).toBeUndefined()
+  })
+})
+
+describe("Ctrl+Z", () => {
+  test("cancels the last action as a whole and drops it from the log", () => {
+    const deleted = run(start, { type: "askDelete", ids: [cat, dog] }, { type: "confirm" })
+    expect(deleted.ops).toHaveLength(2)
+    const back = run(deleted, { type: "undo" })
+    expect(back.ops).toEqual([])
+    expect(back.fs).toEqual(start.fs)
+  })
+
+  test("goes back one action at a time and says when there is nothing left", () => {
+    const state = run(start, { type: "create", containerId: DESKTOP_ID, kind: "folder" }, { type: "drop", ids: [cat], targetId: idOf(start.fs, "Тварини"), copy: false })
+    const once = run(state, { type: "undo" })
+    expect(idOf(once.fs, "кіт.png")).toBe(cat)
+    expect(findByPath(once.fs, "Нова папка")).toBeDefined()
+    const twice = run(once, { type: "undo" })
+    expect(findByPath(twice.fs, "Нова папка")).toBeUndefined()
+    expect(run(twice, { type: "undo" }).message).toBe("Немає дії, яку можна скасувати")
+  })
+
+  test("deleting for good cannot be undone", () => {
+    const state = run(start, { type: "askDelete", ids: [cat] }, { type: "confirm" }, { type: "askEmptyBin" }, { type: "confirm" })
+    expect(run(state, { type: "undo" }).message).toBe("Видалене назавжди повернути не можна")
+  })
+})
+
+describe("«Вигляд» and search", () => {
+  test("hidden items are left out until «Приховані елементи» is on", () => {
+    const hidden = run(start, { type: "attributes", nodeId: cat, readOnly: false, hidden: true })
+    expect(listingOf(hidden, DESKTOP_ID).map((n) => n.id)).not.toContain(cat)
+    expect(listingOf(run(hidden, { type: "view", change: { showHidden: true } }), DESKTOP_ID).map((n) => n.id)).toContain(cat)
+  })
+
+  test("Ctrl+A in a window with search selects the results from every subfolder", () => {
+    const opened = run(start, { type: "open", nodeId: DESKTOP_ID })
+    const win = opened.windows[0]
+    if (!win) throw new Error("немає вікна")
+    const searched = run(opened, { type: "search", winId: win.id, text: "*.txt" }, { type: "selectAll", containerId: DESKTOP_ID })
+    expect(searched.selected).toEqual([letter])
+  })
+
+  test("Ctrl+click keeps items from different folders when they are shown together", () => {
+    const state = run(start, { type: "select", nodeId: cat, additive: false }, { type: "select", nodeId: letter, additive: true, scope: [cat, letter] })
+    expect(state.selected).toEqual([cat, letter])
+  })
+
+  test("going to another folder clears the search", () => {
+    const opened = run(start, { type: "open", nodeId: idOf(start.fs, "Документи") })
+    const win = opened.windows[0]
+    if (!win) throw new Error("немає вікна")
+    const moved = run(opened, { type: "search", winId: win.id, text: "лист" }, { type: "up", winId: win.id })
+    expect(moved.windows[0]?.search).toBe("")
   })
 })

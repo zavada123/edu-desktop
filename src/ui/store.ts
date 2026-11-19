@@ -2,7 +2,8 @@ import * as fs from "../core/fs.ts"
 import { BIN_ID, DESKTOP_ID, type FsState, type NodeId } from "../core/fs.ts"
 import { checkGoals, type Goal, type GoalResult } from "../core/goals.ts"
 import { splitExtension } from "../core/names.ts"
-import { applyOp, type Op } from "../core/ops.ts"
+import { searchIn, type SortOrder, sortItems } from "../core/listing.ts"
+import { applyOp, type Op, replay } from "../core/ops.ts"
 
 /** UI state of one desktop session. Pure reducer: every action returns a new object. */
 
@@ -16,7 +17,23 @@ export interface Win {
   /** Hidden on the taskbar («Згорнути»); its taskbar button brings it back. */
   readonly minimized: boolean
   readonly history: ReadonlyArray<NodeId>
+  /** Text in the search box: the window shows what matches in this folder and its subfolders. */
+  readonly search: string
 }
+
+export type ViewMode = "icons" | "details"
+
+/** Explorer «Вигляд», the same for every window, as the student last set it. */
+export interface ViewSettings {
+  readonly mode: ViewMode
+  readonly sort: SortOrder
+  /** «Розширення імен файлів». */
+  readonly showExtensions: boolean
+  /** «Приховані елементи»: off hides them, on shows them faded. */
+  readonly showHidden: boolean
+}
+
+export const DEFAULT_VIEW: ViewSettings = { mode: "icons", sort: { key: "name", desc: false }, showExtensions: true, showHidden: false }
 
 export interface Clipboard {
   readonly mode: "cut" | "copy"
@@ -65,6 +82,11 @@ export interface DesktopState {
   readonly properties: NodeId | null
   /** When the student made each new item, for «Створено» in «Властивості». Start items have no entry. */
   readonly born: Readonly<Record<NodeId, number>>
+  readonly view: ViewSettings
+  /** The tree before the log: Ctrl+Z replays the log without its last action. */
+  readonly start: FsState
+  /** Length of the log before each action the student made; Ctrl+Z goes back to the last one. */
+  readonly marks: ReadonlyArray<number>
 }
 
 export type FileDialog = "save" | "open"
@@ -92,8 +114,11 @@ export type Action =
   | { readonly type: "minimize"; readonly winId: number }
   /** Taskbar button: as in Windows, it minimises the active window and brings back any other. */
   | { readonly type: "taskbar"; readonly winId: number }
-  /** `range`: Shift+click selects everything from the first selected item to this one. */
-  | { readonly type: "select"; readonly nodeId: NodeId | null; readonly additive: boolean; readonly range?: boolean }
+  /**
+   * `range`: Shift+click selects everything from the first selected item to this one. `scope`: the items shown
+   * where the student clicked, in their order; the selection stays inside it (search results span folders).
+   */
+  | { readonly type: "select"; readonly nodeId: NodeId | null; readonly additive: boolean; readonly range?: boolean; readonly scope?: ReadonlyArray<NodeId> }
   | { readonly type: "selectAll"; readonly containerId: NodeId }
   | { readonly type: "toggleMulti" }
   | { readonly type: "startRename"; readonly nodeId: NodeId }
@@ -121,6 +146,10 @@ export type Action =
   | { readonly type: "properties"; readonly nodeId: NodeId | null }
   /** «Застосувати» or «OK» in «Властивості». */
   | { readonly type: "attributes"; readonly nodeId: NodeId; readonly readOnly: boolean; readonly hidden: boolean }
+  | { readonly type: "view"; readonly change: Partial<ViewSettings> }
+  | { readonly type: "search"; readonly winId: number; readonly text: string }
+  /** Ctrl+Z: cancels the last change, as «Скасувати» in Windows Explorer. */
+  | { readonly type: "undo" }
 
 export const initialState = (fsState: FsState, withApp = false): DesktopState => {
   const empty = blankState(fsState)
@@ -143,7 +172,10 @@ const blankState = (fsState: FsState): DesktopState => ({
   savedAs: null,
   ops: [],
   properties: null,
-  born: {}
+  born: {},
+  view: DEFAULT_VIEW,
+  start: fsState,
+  marks: []
 })
 
 const CASCADE_STEP = 28
@@ -172,7 +204,7 @@ const withFs = (state: DesktopState, fsState: FsState): DesktopState =>
 const run = (state: DesktopState, op: Op, after?: (s: DesktopState, id: NodeId) => DesktopState): DesktopState => {
   const result = applyOp(state.fs, op)
   if (!result.ok) return { ...state, message: result.error, menu: null }
-  const next = withFs({ ...state, ops: [...state.ops, op] }, result.state)
+  const next = withFs({ ...state, ops: [...state.ops, op], marks: [...state.marks, state.ops.length] }, result.state)
   return after ? after(next, result.id) : next
 }
 
@@ -184,7 +216,7 @@ const runEach = (state: DesktopState, ops: ReadonlyArray<Op>): DesktopState => {
     if (!result.ok) return { ...state, message: result.error, menu: null }
     current = result.state
   }
-  return withFs({ ...state, ops: [...state.ops, ...ops] }, current)
+  return withFs({ ...state, ops: [...state.ops, ...ops], marks: [...state.marks, state.ops.length] }, current)
 }
 
 const userIds = (ids: Ids): Ids => ids.filter((id) => !fs.isSystem(id))
@@ -207,34 +239,48 @@ const openWin = (state: DesktopState, nodeId: NodeId): DesktopState => {
   const existing = state.windows.find((w) => w.nodeId === nodeId)
   if (existing) return focusWin({ ...state, menu: null }, existing.id)
   const offset = ((state.nextWinId - 1) % CASCADE_SIZE) * CASCADE_STEP
-  const win: Win = { id: state.nextWinId, nodeId, x: 40 + offset, y: 30 + offset, maximized: false, minimized: false, history: [] }
+  const win: Win = { id: state.nextWinId, nodeId, x: 40 + offset, y: 30 + offset, maximized: false, minimized: false, history: [], search: "" }
   return { ...state, windows: [...state.windows, win], nextWinId: state.nextWinId + 1, menu: null, selected: [] }
 }
 
 const navigate = (state: DesktopState, winId: number, nodeId: NodeId, remember: boolean): DesktopState =>
   updateWin({ ...state, selected: [], menu: null }, winId, (w) =>
-    w.nodeId === nodeId ? w : { ...w, nodeId, history: remember ? [...w.history, w.nodeId] : w.history }
+    w.nodeId === nodeId ? { ...w, search: "" } : { ...w, nodeId, search: "", history: remember ? [...w.history, w.nodeId] : w.history }
   )
 
+/** What a folder shows: hidden items only with «Приховані елементи», in the chosen order; or the search results. */
+export const listingOf = (state: DesktopState, folderId: NodeId, search = ""): ReadonlyArray<fs.FsNode> => {
+  const items = search.trim() === "" ? fs.childrenOf(state.fs, folderId) : searchIn(state.fs, folderId, search)
+  const shown = state.view.showHidden ? items : items.filter((n) => !n.hidden)
+  // The desktop keeps the name order: «Вигляд» belongs to Explorer windows.
+  const order = folderId === DESKTOP_ID ? DEFAULT_VIEW.sort : state.view.sort
+  return sortItems(state.fs, shown, order, state.born)
+}
+
+/** The items shown together with `nodeId` when no scope is given: its folder. */
+const siblingsOf = (state: DesktopState, nodeId: NodeId): ReadonlyArray<NodeId> => {
+  const parent = fs.getNode(state.fs, nodeId)?.parentId
+  return parent == null ? [] : listingOf(state, parent).map((n) => n.id)
+}
+
 /** Ctrl+click (or a tap in «Вибрати кілька») adds or removes an item; a plain click selects only it. */
-const select = (state: DesktopState, nodeId: NodeId | null, additive: boolean): DesktopState => {
+const select = (state: DesktopState, nodeId: NodeId | null, additive: boolean, scope?: ReadonlyArray<NodeId>): DesktopState => {
   const base = { ...state, menu: null, renaming: state.renaming !== null && state.renaming === nodeId ? state.renaming : null }
   if (nodeId === null) return additive ? base : { ...base, selected: [] }
   if (!additive) return { ...base, selected: [nodeId] }
   const parent = fs.getNode(state.fs, nodeId)?.parentId
-  const sameFolder = state.selected.filter((id) => fs.getNode(state.fs, id)?.parentId === parent)
-  const selected = sameFolder.includes(nodeId) ? sameFolder.filter((id) => id !== nodeId) : [...sameFolder, nodeId]
+  const together = scope === undefined ? state.selected.filter((id) => fs.getNode(state.fs, id)?.parentId === parent) : state.selected.filter((id) => scope.includes(id))
+  const selected = together.includes(nodeId) ? together.filter((id) => id !== nodeId) : [...together, nodeId]
   return { ...base, selected }
 }
 
 /** Shift+click: the items between the first selected one and `nodeId`, in the order the folder shows them. */
-const selectRange = (state: DesktopState, nodeId: NodeId): DesktopState => {
-  const parent = fs.getNode(state.fs, nodeId)?.parentId
+const selectRange = (state: DesktopState, nodeId: NodeId, scope?: ReadonlyArray<NodeId>): DesktopState => {
   const anchor = state.selected[0]
-  const siblings = parent == null ? [] : fs.childrenOf(state.fs, parent).map((n) => n.id)
+  const siblings = scope ?? siblingsOf(state, nodeId)
   const from = anchor === undefined ? -1 : siblings.indexOf(anchor)
   const to = siblings.indexOf(nodeId)
-  if (from < 0 || to < 0) return select(state, nodeId, false)
+  if (from < 0 || to < 0) return select(state, nodeId, false, scope)
   const [a, b] = from <= to ? [from, to] : [to, from]
   const range = siblings.slice(a, b + 1)
   return { ...state, menu: null, renaming: null, selected: [anchor ?? nodeId, ...range.filter((id) => id !== anchor)] }
@@ -273,6 +319,27 @@ const paste = (state: DesktopState, targetId: NodeId): DesktopState => {
   const next = runEach(state, clip.ids.map((id) => ({ op: clip.mode === "cut" ? "move" : "copy", id, targetId })))
   if (next.message !== null) return next
   return { ...next, clipboard: clip.mode === "cut" ? null : clip }
+}
+
+/** The search text of the window showing `folderId`, so Ctrl+A selects the results. */
+const searchOf = (state: DesktopState, folderId: NodeId): string => state.windows.findLast((w) => w.nodeId === folderId && !w.minimized)?.search ?? ""
+
+const visibleOnly = (state: DesktopState): ReadonlyArray<NodeId> => state.selected.filter((id) => fs.getNode(state.fs, id)?.hidden !== true)
+
+/** Changes Windows cannot take back: an item deleted for good is gone. */
+const FINAL_OPS: ReadonlySet<Op["op"]> = new Set(["deleteForever", "emptyBin"])
+
+/** Ctrl+Z: the tree as it was before the last action. Deleting for good cannot be undone, as in Windows. */
+const undo = (state: DesktopState): DesktopState => {
+  const mark = state.marks.at(-1)
+  if (mark === undefined) return { ...state, message: "Немає дії, яку можна скасувати", menu: null }
+  const last = state.ops.slice(mark)
+  if (last.some((op) => FINAL_OPS.has(op.op))) return { ...state, message: "Видалене назавжди повернути не можна", menu: null }
+  const ops = state.ops.slice(0, mark)
+  const replayed = replay(state.start, ops)
+  if (!replayed.ok) return { ...state, message: replayed.error, menu: null }
+  const back = withFs({ ...state, ops, marks: state.marks.slice(0, -1), renaming: null, selected: [] }, replayed.state)
+  return { ...back, savedAs: back.savedAs !== null && fs.getNode(back.fs, back.savedAs) ? back.savedAs : null }
 }
 
 export const reducer = (state: DesktopState, action: Action): DesktopState => {
@@ -329,13 +396,15 @@ export const reducer = (state: DesktopState, action: Action): DesktopState => {
         })
       )
     case "select":
-      return action.range && action.nodeId !== null ? selectRange(state, action.nodeId) : select(state, action.nodeId, action.additive || state.multi)
+      return action.range && action.nodeId !== null
+        ? selectRange(state, action.nodeId, action.scope)
+        : select(state, action.nodeId, action.additive || state.multi, action.scope)
     case "compress":
       return compress(state, action.ids)
     case "extract":
       return run(state, { op: "extract", id: action.nodeId }, (s, id) => ({ ...s, selected: [id] }))
     case "selectAll":
-      return { ...state, menu: null, renaming: null, selected: userIds(fs.childrenOf(state.fs, action.containerId).map((n) => n.id)) }
+      return { ...state, menu: null, renaming: null, selected: userIds(listingOf(state, action.containerId, searchOf(state, action.containerId)).map((n) => n.id)) }
     case "toggleMulti":
       return { ...state, multi: !state.multi, menu: null }
     case "startRename":
@@ -385,6 +454,12 @@ export const reducer = (state: DesktopState, action: Action): DesktopState => {
       return { ...state, message: null }
     case "properties":
       return { ...state, properties: action.nodeId === null || fs.getNode(state.fs, action.nodeId) ? action.nodeId : null, menu: null, renaming: null }
+    case "view":
+      return { ...state, view: { ...state.view, ...action.change }, menu: null, selected: action.change.showHidden === false ? visibleOnly(state) : state.selected }
+    case "search":
+      return updateWin({ ...state, selected: [], menu: null, renaming: null }, action.winId, (w) => ({ ...w, search: action.text }))
+    case "undo":
+      return undo(state)
     case "attributes": {
       const node = fs.getNode(state.fs, action.nodeId)
       if (!node || ((node.readOnly === true) === action.readOnly && (node.hidden === true) === action.hidden)) return state

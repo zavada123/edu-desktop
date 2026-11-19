@@ -120,3 +120,9 @@ describe("Alt+Enter", () => {
     expect(commandForKey(selected, plain("Enter"), DESKTOP_ID)).toEqual({ type: "openItem", nodeId: cat })
   })
 })
+
+describe("Ctrl+Z", () => {
+  test("asks to undo", () => {
+    expect(commandForKey(start, ctrl("KeyZ"), DESKTOP_ID)).toEqual({ type: "undo" })
+  })
+})

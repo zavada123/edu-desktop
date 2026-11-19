@@ -12,7 +12,7 @@ import { iconKindOf, ItemIcon, NodeIcon } from "./icons.tsx"
 import { ItemGrid } from "./ItemGrid.tsx"
 import { commandForKey, isBrowserShortcut } from "./keys.ts"
 import { usePointer } from "./pointer.ts"
-import { activeWin, APP_ID, initialState, reducer, titleOf } from "./store.ts"
+import { activeWin, APP_ID, initialState, listingOf, reducer, titleOf } from "./store.ts"
 import { AppContent, APPS, appTitle } from "./AppWindow.tsx"
 import { PropertiesDialog } from "./PropertiesDialog.tsx"
 import { SaveDialog } from "./SaveDialog.tsx"
@@ -21,6 +21,7 @@ import { Window } from "./Window.tsx"
 import "./desktop.css"
 import "./rich-text.css"
 import "./properties.css"
+import "./explorer-view.css"
 
 const MESSAGE_MS = 4_000
 
@@ -61,7 +62,7 @@ const startState = (scenario: Scenario, ops: ReadonlyArray<Op>) => {
   const begin = buildState(scenario.start, scenario.drives)
   const replayed = replay(begin, ops)
   const state = initialState(replayed.ok ? replayed.state : begin, scenario.app !== undefined)
-  return replayed.ok ? { ...state, ops } : state
+  return replayed.ok ? { ...state, ops, start: begin } : state
 }
 
 /** The whole trainer for one scenario. Can be embedded into any React page. */
@@ -154,8 +155,15 @@ export const EduDesktop = ({ scenario, onCheck, onChange, initialOps = [], selfC
     }
   }, [state, open])
 
+  /** The items shown where the student clicked: a window (its search results too) or the desktop. */
+  const scopeOf = (): ReadonlyArray<NodeId> => {
+    const win = typeof focus.current === "number" ? state.windows.find((w) => w.id === focus.current) : undefined
+    if (win) return listingOf(state, win.nodeId, win.search).map((n) => n.id)
+    return [THIS_PC_ID, BIN_ID, ...listingOf(state, DESKTOP_ID).map((n) => n.id)]
+  }
+
   const { bind, drag } = usePointer({
-    onSelect: (nodeId, additive, range) => dispatch({ type: "select", nodeId, additive, range }),
+    onSelect: (nodeId, additive, range) => dispatch({ type: "select", nodeId, additive, range, scope: scopeOf() }),
     onOpen: (nodeId) => {
       const parentId = getNode(state.fs, nodeId)?.parentId
       open(nodeId, state.windows.find((w) => w.nodeId === parentId)?.id)
@@ -180,7 +188,7 @@ export const EduDesktop = ({ scenario, onCheck, onChange, initialOps = [], selfC
   const binHasItems = childrenOf(state.fs, BIN_ID).length > 0
   const active = activeWin(state)
   const systemIcons = [getNode(state.fs, THIS_PC_ID), getNode(state.fs, BIN_ID)].filter((n) => n !== undefined)
-  const desktopItems = [...systemIcons, ...childrenOf(state.fs, DESKTOP_ID)]
+  const desktopItems = [...systemIcons, ...listingOf(state, DESKTOP_ID)]
   const dragged = drag ? getNode(state.fs, drag.nodeId) : undefined
   const dragCount = drag && state.selected.includes(drag.nodeId) ? state.selected.length : 1
 

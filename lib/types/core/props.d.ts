@@ -32,6 +32,8 @@ export declare const locationOf: (state: FsState, node: FsNode) => string;
 export declare const shortcutTargetPath: (state: FsState, node: FsNode) => string | undefined;
 /** `18 листопада 2026 р., 22:50:23`, as in Ukrainian Windows. Local time. */
 export declare const formatDate: (time: number) => string;
+/** `18.11.2026 22:50`, as the «Дата змінення» column writes it. */
+export declare const formatShortDate: (time: number) => string;
 /**
  * When an item from the start tree was created and last changed: the same for the same name and place,
  * so every student sees the same dates. Items the student made carry their own time instead.

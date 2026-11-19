@@ -37,11 +37,13 @@ The student-facing interface is in Ukrainian. It was built for [EduProstir](http
 - **Windows-style address bar:** click the empty space to see the full path (`D:\Мої уроки\Інформатика`), type a path and press Enter.
 - **All the file operations from the curriculum:** New → Folder / Text document, rename, copy, cut, paste, delete, restore from the bin, delete permanently, empty the bin, with a "Move to Recycle Bin?" confirmation.
 - **Properties window:** right-click → «Властивості» (or Alt+Enter) shows the type, the program, the location as a Windows path (`C:\Users\Учень\Desktop`, `D:\Мої уроки`), the size and size on disk, the contents of a folder, the dates and the «Лише читання» / «Прихований» attributes. Drives show used, free and total space.
+- **«Вигляд» and search in Explorer:** icons or a details table (name, date modified, type, size) sorted by any column, «Розширення імен файлів» and «Приховані елементи» on or off, and a search box that finds names and masks (`*.jpg`, `звіт*`) in the folder and its subfolders.
+- **Undo:** Ctrl+Z or «Скасувати» takes back the last action, as in Windows; deleting for good cannot be undone.
 - **Shortcuts:** "Create shortcut" and "Send to → Desktop (create shortcut)"; a shortcut opens its target, and deleting it leaves the target alone.
 - **ZIP folders:** "Send to → Compressed (zipped) folder", open an archive like a folder, "Extract all…".
 - **Apps with Save As and Open dialogs:** Paint (you can draw), a text editor and a browser with "Save image as…".
 - **Real Windows interactions:** right-drag menu (copy here / move here / create shortcuts), slow second click to rename, Ctrl/Shift multi-select, drag to a folder or the bin, minimise / maximise / close.
-- **Keyboard shortcuts:** Ctrl+C, Ctrl+X, Ctrl+V, Ctrl+A, Delete, F2, Enter, Backspace, Escape, Alt+Enter. They work with the Ukrainian keyboard layout too.
+- **Keyboard shortcuts:** Ctrl+C, Ctrl+X, Ctrl+V, Ctrl+A, Delete, F2, Enter, Backspace, Escape, Alt+Enter, Ctrl+Z. They work with the Ukrainian keyboard layout too.
 - **Windows naming rules:** forbidden characters, reserved names (NUL, PRN, CON…), "Нова папка (2)", "море – копія.jpg".
 - **Works on phones and tablets:** long press opens the context menu, a "Select several" button replaces Ctrl+click.
 - **Large mode** for grades 3–4.

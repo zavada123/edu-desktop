@@ -4,6 +4,7 @@ import { type NextExercise } from "./TaskPanel.tsx";
 import "./desktop.css";
 import "./rich-text.css";
 import "./properties.css";
+import "./explorer-view.css";
 interface Props {
     /** To show another scenario, give the component a new `key`, for example the scenario id. */
     readonly scenario: Scenario;

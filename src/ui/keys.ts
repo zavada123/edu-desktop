@@ -30,6 +30,8 @@ export const commandForKey = (state: DesktopState, press: KeyPress, folderId: No
         return state.clipboard ? { type: "paste", targetId: folderId } : null
       case "KeyA":
         return { type: "selectAll", containerId: folderId }
+      case "KeyZ":
+        return { type: "undo" }
       default:
         return null
     }
