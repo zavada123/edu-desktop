@@ -223,3 +223,25 @@ describe("«Вигляд» and search", () => {
     expect(moved.windows[0]?.search).toBe("")
   })
 })
+
+describe("window size", () => {
+  const opened = run(start, { type: "open", nodeId: idOf(start.fs, "Документи") })
+  const winId = opened.windows[0]?.id ?? -1
+
+  test("dragging an edge stores the new position and size", () => {
+    const win = run(opened, { type: "resizeWin", winId, x: 10, y: 20, width: 700, height: 500 }).windows[0]
+    expect(win).toMatchObject({ x: 10, y: 20, width: 700, height: 500 })
+  })
+
+  test("the window keeps a minimum size", () => {
+    const win = run(opened, { type: "resizeWin", winId, x: 0, y: 0, width: 10, height: 10 }).windows[0]
+    expect(win).toMatchObject({ width: 320, height: 200 })
+  })
+
+  test("a maximised window is not resized, and restoring brings back its own size", () => {
+    const sized = run(opened, { type: "resizeWin", winId, x: 10, y: 20, width: 700, height: 500 })
+    const max = run(sized, { type: "toggleMax", winId }, { type: "resizeWin", winId, x: 0, y: 0, width: 400, height: 300 })
+    expect(max.windows[0]).toMatchObject({ maximized: true, width: 700, height: 500 })
+    expect(run(max, { type: "toggleMax", winId }).windows[0]).toMatchObject({ maximized: false, x: 10, y: 20, width: 700, height: 500 })
+  })
+})

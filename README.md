@@ -42,7 +42,7 @@ The student-facing interface is in Ukrainian. It was built for [EduProstir](http
 - **Shortcuts:** "Create shortcut" and "Send to → Desktop (create shortcut)"; a shortcut opens its target, and deleting it leaves the target alone.
 - **ZIP folders:** "Send to → Compressed (zipped) folder", open an archive like a folder, "Extract all…".
 - **Apps with Save As and Open dialogs:** Paint (you can draw), a text editor and a browser with "Save image as…".
-- **Real Windows interactions:** right-drag menu (copy here / move here / create shortcuts), slow second click to rename, Ctrl/Shift multi-select, drag to a folder or the bin, minimise / maximise / close.
+- **Real Windows interactions:** right-drag menu (copy here / move here / create shortcuts), slow second click to rename, Ctrl/Shift multi-select, drag to a folder or the bin, minimise / maximise / close, resize a window by its edges and corners (double-click the title bar to maximise or restore).
 - **Keyboard shortcuts:** Ctrl+C, Ctrl+X, Ctrl+V, Ctrl+A, Delete, F2, Enter, Backspace, Escape, Alt+Enter, Ctrl+Z. They work with the Ukrainian keyboard layout too.
 - **Windows naming rules:** forbidden characters, reserved names (NUL, PRN, CON…), "Нова папка (2)", "море – копія.jpg".
 - **Works on phones and tablets:** long press opens the context menu, a "Select several" button replaces Ctrl+click.
