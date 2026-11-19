@@ -145,20 +145,103 @@
   position: absolute;
   width: min(640px, calc(100% - 24px));
   height: min(420px, calc(100% - 24px));
+  /* A resized window still fits when the desktop gets smaller (leaving full screen, a narrower page). */
+  max-width: 100%;
+  max-height: 100%;
   display: flex;
   flex-direction: column;
   background: var(--ed-panel);
   border: 1px solid #9aa7ba;
   border-radius: 8px;
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.3);
+}
+
+/* Clips the content to the rounded frame, so the resize edges can stick out of it. */
+.ed-win-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
+  border-radius: inherit;
 }
 
 .ed-win.is-max {
   inset: 0 !important;
-  width: auto;
-  height: auto;
+  width: auto !important;
+  height: auto !important;
   border-radius: 0;
+}
+
+/* Edges and corners to resize the window, as in Windows: a thin strip just outside and inside the frame. */
+.ed-resize {
+  position: absolute;
+  z-index: 3;
+  touch-action: none;
+}
+
+.ed-resize-n,
+.ed-resize-s {
+  left: 8px;
+  right: 8px;
+  height: 8px;
+  cursor: ns-resize;
+}
+
+.ed-resize-n {
+  top: -5px;
+}
+
+.ed-resize-s {
+  bottom: -5px;
+}
+
+.ed-resize-e,
+.ed-resize-w {
+  top: 8px;
+  bottom: 8px;
+  width: 8px;
+  cursor: ew-resize;
+}
+
+.ed-resize-e {
+  right: -5px;
+}
+
+.ed-resize-w {
+  left: -5px;
+}
+
+.ed-resize-ne,
+.ed-resize-nw,
+.ed-resize-se,
+.ed-resize-sw {
+  width: 16px;
+  height: 16px;
+}
+
+.ed-resize-nw {
+  top: -5px;
+  left: -5px;
+  cursor: nwse-resize;
+}
+
+.ed-resize-se {
+  bottom: -5px;
+  right: -5px;
+  cursor: nwse-resize;
+}
+
+.ed-resize-ne {
+  top: -5px;
+  right: -5px;
+  cursor: nesw-resize;
+}
+
+.ed-resize-sw {
+  bottom: -5px;
+  left: -5px;
+  cursor: nesw-resize;
 }
 
 .ed-titlebar {
@@ -615,9 +698,13 @@
 @media (max-width: 700px) {
   .ed-win {
     inset: 0 !important;
-    width: auto;
-    height: auto;
+    width: auto !important;
+    height: auto !important;
     border-radius: 0;
+  }
+
+  .ed-resize {
+    display: none;
   }
 
   .ed-tb-btn.ed-max {
