@@ -579,12 +579,37 @@
   cursor: pointer;
 }
 
+/* Numbered steps: the page around the trainer can reset list styles, so the numbers are drawn here. */
 .ed-task-steps {
-  padding-left: 20px;
+  margin: 0 0 12px;
+  padding: 0;
+  list-style: none;
+  counter-reset: ed-step;
 }
 
 .ed-task-steps li {
-  margin-bottom: 6px;
+  position: relative;
+  margin-bottom: 8px;
+  padding-left: 32px;
+  counter-increment: ed-step;
+}
+
+.ed-task-steps li::before {
+  content: counter(ed-step);
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--ed-accent);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
 }
 
 .ed-task-actions {
